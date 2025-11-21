@@ -1,5 +1,5 @@
-import { Biller } from '../models/billModel.js';
-import { Item } from '../models/itemSaleModel.js';
+import { Biller } from '../models/bill.model.js';
+import { Item } from '../models/item-sale.model.js';
 import sequelize from '../config/db.js';
 
 const BillRepo = {

@@ -1,5 +1,5 @@
-import UserService from "../Services/userService.js";
-import UserRepo from "../Repositories/userRepository.js";
+import UserService from "../services/user.service.js";
+import UserRepo from "../repositories/user.repository.js";
 
 const UserController = {
   registerUser: async (req, res) => {

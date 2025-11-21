@@ -3,18 +3,18 @@ import cors from "cors";
 import sequelize, { testConnection } from "./config/db.js";
 
 // Import routes
-import userRouter from "./routes/userRouter.js";
-import matRouter from "./routes/matRouter.js";
-import productRouter from "./routes/productRouter.js";
-import stockRouter from "./routes/stockRouter.js";
-import saleRouter from "./routes/saleRouter.js";
-import billRouter from "./routes/billRouter.js";
+import userRouter from "./routes/user.router.js";
+import matRouter from "./routes/mat.router.js";
+import productRouter from "./routes/product.router.js";
+import stockRouter from "./routes/stock.router.js";
+import saleRouter from "./routes/sale.router.js";
+import billRouter from "./routes/bill.router.js";
 // ... other route imports
 
 // Request / tracing middlewares
-import requestLogger from './middlewares/requestLogger.js';
-import idDisplayer from './middlewares/idDisplayer.js';
-import errorLogger from './middlewares/errorLogger.js';
+import requestLogger from './middlewares/request.logger.js';
+import idDisplayer from './middlewares/id.displayer.js';
+import errorLogger from './middlewares/error.logger.js';
 
 
 

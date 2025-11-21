@@ -1,4 +1,4 @@
-import { Sale } from '../models/saleModel.js';
+import { Sale } from '../models/sale.model.js';
 
 const SaleRepo = {
   createSale: async (data) => {

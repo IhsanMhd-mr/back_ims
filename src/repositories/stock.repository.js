@@ -1,4 +1,4 @@
-import { Stock } from '../models/stockModel.js';
+import { Stock } from '../models/stock.model.js';
 import { Op } from 'sequelize';
 
 const StockRepo = {

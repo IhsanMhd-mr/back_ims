@@ -1,4 +1,4 @@
-import { Material } from '../models/matModel.js';
+import { Material } from '../models/mat.model.js';
 import { Op } from 'sequelize';
 
 const MaterialRepo = {

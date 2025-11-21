@@ -1,4 +1,4 @@
-import { BillRepo } from '../repositories/billRepository.js';
+import { BillRepo } from '../repositories/bill.repository.js';
 
 const BillController = {
   create: async (req, res) => {

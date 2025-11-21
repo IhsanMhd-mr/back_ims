@@ -1,4 +1,4 @@
-import MaterialRepo from '../repositories/matRepository.js';
+import MaterialRepo from '../repositories/mat.repository.js';
 
 const MaterialController = {
     create: async (req, res) => {

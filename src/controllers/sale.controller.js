@@ -1,4 +1,4 @@
-import { SaleRepo } from '../repositories/saleRepository.js';
+import { SaleRepo } from '../repositories/sale.repository.js';
 
 const SaleController = {
   create: async (req, res) => {

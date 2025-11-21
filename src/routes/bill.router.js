@@ -1,5 +1,5 @@
 import express from 'express';
-import BillController from '../controllers/billController.js';
+import BillController from '../controllers/bill.controller.js';
 
 const router = express.Router();
 

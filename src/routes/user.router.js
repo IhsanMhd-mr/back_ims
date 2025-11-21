@@ -1,7 +1,7 @@
 import express from "express";
 const router = express.Router();
-import UserController from "../controllers/userController.js";
-import upload from "../config/configMulter.js";
+import UserController from "../controllers/user.controller.js";
+import upload from "../config/config.multer.js";
 // import authentication from "../middleware/userAuthentication.js";
 // import {adminAuth} from "../middleware/adminAuth.js";
 

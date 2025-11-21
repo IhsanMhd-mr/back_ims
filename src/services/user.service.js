@@ -1,4 +1,4 @@
-import UserRepo from "../Repositories/userRepository.js"
+import UserRepo from "../repositories/user.repository.js"
 // import AdminRepo from "../Repositories/adminRepository.js"
 import bcrypt from "bcrypt";
 import validator from "validator";

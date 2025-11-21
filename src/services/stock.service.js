@@ -1,4 +1,4 @@
-import StockRepo from '../repositories/stockRepository.js';
+import StockRepo from '../repositories/stock.repository.js';
 
 const StockService = {
     addStock: async (stockData) => {

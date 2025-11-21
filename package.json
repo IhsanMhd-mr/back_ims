@@ -7,7 +7,7 @@
   "start": "node src/app.js",
   "dev": "nodemon src/app.js",
   "seed": "node src/scripts/seed.js",
-  "bulk": "node src/scripts/bulkUpload.js"
+  "bulk": "node src/scripts/bulk-upload.js"
   },
   "keywords": [],
   "author": "",

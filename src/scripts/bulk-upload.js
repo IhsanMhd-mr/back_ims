@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 import sequelize from '../config/db.js';
 import bcrypt from 'bcrypt';
-import { User } from '../models/userModel.js';
-import { Product } from '../models/productModel.js';
-import { Stock } from '../models/stockModel.js';
-import { Material } from '../models/matModel.js';
-import { Sale } from '../models/saleModel.js';
-import { Biller } from '../models/billModel.js';
-import { Item } from '../models/itemSaleModel.js';
+import { User } from '../models/user.model.js';
+import { Product } from '../models/product.model.js';
+import { Stock } from '../models/stock.model.js';
+import { Material } from '../models/mat.model.js';
+import { Sale } from '../models/sale.model.js';
+import { Biller } from '../models/bill.model.js';
+import { Item } from '../models/item-sale.model.js';
 
 const ensureCount = async (Model, makeFn, name, target = 5) => {
   const count = await Model.count();

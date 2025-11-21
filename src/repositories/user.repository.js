@@ -1,7 +1,7 @@
 import bcrypt from "bcrypt";
-import { User } from "../models/userModel.js"
-import { Item } from "../models/itemSaleModel.js"
-import { Biller } from "../models/billModel.js"
+import { User } from "../models/user.model.js"
+import { Item } from "../models/item-sale.model.js"
+import { Biller } from "../models/bill.model.js"
 import sequelize from "../config/db.js"
 import { Op } from 'sequelize';
 

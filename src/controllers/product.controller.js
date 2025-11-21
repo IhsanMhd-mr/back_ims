@@ -1,4 +1,4 @@
-import { ProductRepo } from '../repositories/productRepository.js';
+import { ProductRepo } from '../repositories/product.repository.js';
 
 const ProductController = {
     create: async (req, res) => {
