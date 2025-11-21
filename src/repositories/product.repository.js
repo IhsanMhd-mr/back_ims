@@ -6,7 +6,14 @@ const ProductRepo = {
     createProductEntry: async (productData) => {
         try {
             console.log('[ProductRepo] CREATE - Creating product with data:', JSON.stringify(productData, null, 2));
+            // ensure variant_id is set from SKU
             productData.variant_id = productData.sku;
+            // map incoming frontend `qty` or legacy `weight` to the new `quantity` column
+            if (productData.qty !== undefined && productData.qty !== null) {
+                productData.quantity = parseInt(productData.qty, 10);
+            } else if (productData.weight !== undefined && productData.weight !== null) {
+                productData.quantity = parseInt(productData.weight, 10);
+            }
             console.log('[ProductRepo] CREATE - Creating product with data:', JSON.stringify(productData, null, 2));
             
             const newProduct = await Product.create(productData);
@@ -258,6 +265,11 @@ const ProductRepo = {
             // set the new variant id and apply overrides
             toCreate.variant_id = newVariantId;
             Object.assign(toCreate, overrides);
+            // compatibility: ensure `quantity` is present when cloning from older rows using `weight` or `qty`
+            if (overrides.quantity === undefined) {
+                if (toCreate.qty !== undefined && toCreate.qty !== null) toCreate.quantity = parseInt(toCreate.qty, 10);
+                else if (toCreate.weight !== undefined && toCreate.weight !== null) toCreate.quantity = parseInt(toCreate.weight, 10);
+            }
             if (createdBy !== null) toCreate.createdBy = createdBy;
 
             const newProduct = await Product.create(toCreate, { transaction: t });

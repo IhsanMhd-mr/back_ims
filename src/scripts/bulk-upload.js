@@ -44,7 +44,7 @@ const run = async () => {
       cost: (5 * i).toFixed(2),
       mrp: (6 * i).toFixed(2),
       date: new Date().toISOString().split('T')[0],
-      weight: i,
+      quantity: i,
       unit: 'pcs'
     }), 'Product');
 
@@ -107,7 +107,6 @@ const run = async () => {
         date: new Date(),
         cost: prod.cost,
         mrp: prod.mrp,
-        weight: prod.weight,
         qty: 1,
         unit: prod.unit,
         biller_id: bill.id

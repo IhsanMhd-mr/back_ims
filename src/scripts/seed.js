@@ -42,8 +42,8 @@ const seed = async () => {
     const productCount = await Product.count();
     let p1, p2;
     if (productCount === 0) {
-      p1 = await Product.create({ sku: 'P-001', name: 'Widget A', description: 'Sample widget', cost: '10.00', mrp: '12.00', date: new Date().toISOString().split('T')[0], weight: 1, unit: 'pcs' });
-      p2 = await Product.create({ sku: 'P-002', name: 'Gadget B', description: 'Sample gadget', cost: '20.00', mrp: '24.00', date: new Date().toISOString().split('T')[0], weight: 2, unit: 'pcs' });
+  p1 = await Product.create({ sku: 'P-001', name: 'Widget A', description: 'Sample widget', cost: '10.00', mrp: '12.00', date: new Date().toISOString().split('T')[0], quantity: 1, unit: 'pcs' });
+  p2 = await Product.create({ sku: 'P-002', name: 'Gadget B', description: 'Sample gadget', cost: '20.00', mrp: '24.00', date: new Date().toISOString().split('T')[0], quantity: 2, unit: 'pcs' });
       console.log('Created sample products');
     } else {
       p1 = await Product.findOne();
@@ -78,8 +78,8 @@ const seed = async () => {
       });
 
       await Item.bulkCreate([
-        { name: p1.name, description: p1.description, date: new Date(), cost: p1.cost, mrp: p1.mrp, weight: p1.weight, qty: 1, unit: p1.unit, biller_id: bill.id },
-        { name: p2.name, description: p2.description, date: new Date(), cost: p2.cost, mrp: p2.mrp, weight: p2.weight, qty: 1, unit: p2.unit, biller_id: bill.id }
+        { name: p1.name, description: p1.description, date: new Date(), cost: p1.cost, mrp: p1.mrp, qty: 1, unit: p1.unit, biller_id: bill.id },
+        { name: p2.name, description: p2.description, date: new Date(), cost: p2.cost, mrp: p2.mrp, qty: 1, unit: p2.unit, biller_id: bill.id }
       ]);
       console.log('Created sample bill and items');
     } else {
