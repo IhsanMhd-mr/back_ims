@@ -42,8 +42,7 @@ export const Product = sequelize.define(
         // until you run the migration to rename the column to `quantity`.
         quantity: {
             type: DataTypes.INTEGER,
-            allowNull: false,
-            field: 'weight'
+            allowNull: false
         },
         unit: {
             type: DataTypes.STRING,
