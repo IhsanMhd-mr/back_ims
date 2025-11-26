@@ -7,7 +7,10 @@
   "start": "node src/app.js",
   "dev": "nodemon src/app.js",
   "seed": "node src/scripts/seed.js",
-  "bulk": "node src/scripts/bulk-upload.js"
+  "bulk": "node src/scripts/bulk-upload.js",
+  "migrate:sql": "node db/run-migrations.js",
+  "migrate:drop-discount": "node db/run-drop-discount.js",
+  "seed:bills": "node db/run-seed-bills.js"
   },
   "keywords": [],
   "author": "",

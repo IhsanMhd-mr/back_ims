@@ -1,69 +1,66 @@
-import sequelize from "../config/db.js"
+import sequelize from "../config/db.js";
 import { DataTypes } from "sequelize";
 
-// Item model represents a sale line (an item included in a bill/invoice).
-// Kept the original table name `sale_records` to remain compatible with existing code.
-// Improved types: use numeric types for amounts and date for date fields.
-export const Item = sequelize.define(
-    "Item",
+export const ItemSale = sequelize.define(
+    "ItemSale",
     {
         id: {
             type: DataTypes.INTEGER,
             autoIncrement: true,
             primaryKey: true,
         },
-        name: {
-            type: DataTypes.STRING,
-            allowNull: false,
-        },
-        description: {
-            type: DataTypes.STRING,
-            allowNull: true,
-        },
-        // store the transaction date/time
-        date: {
-            type: DataTypes.DATE,
-            allowNull: false,
-        },
-        // monetary fields: prefer DECIMAL(12,2) or store as integer cents if you prefer
-        cost: {
-            type: DataTypes.DECIMAL(12,2),
-            allowNull: false,
-        },
-        mrp: {
-            type: DataTypes.DECIMAL(12,2),
-            allowNull: false,
-        },
-        // weight can be fractional (kg etc.) so use decimal
-        weight: {
-            type: DataTypes.DECIMAL(10,3),
-            allowNull: false,
-        },
-        qty: {
+        bill_id: {
             type: DataTypes.INTEGER,
             allowNull: false,
         },
-        unit: {
+        product_id: {
+            type: DataTypes.INTEGER,
+            allowNull: false,
+        },
+        product_name: {
             type: DataTypes.STRING,
             allowNull: false,
         },
-        // FK to biller_records.id
-        biller_id: {
-            type: DataTypes.INTEGER,
+        sku: {
+            type: DataTypes.STRING,
             allowNull: true,
-        }
+        },
+        variant_id: {
+            type: DataTypes.STRING,
+            allowNull: true,
+        },
+        quantity: {
+            type: DataTypes.INTEGER,
+            allowNull: false,
+            defaultValue: 1,
+        },
+        unit_price: {
+            type: DataTypes.DECIMAL(12, 2),
+            allowNull: false,
+        },
+        subtotal: {
+            type: DataTypes.DECIMAL(12, 2),
+            allowNull: false,
+        },
+        // Per-item discount percentage (0-100)
+        discount_percent: {
+            type: DataTypes.DECIMAL(5, 2),
+            allowNull: true,
+            defaultValue: 0,
+        },
+        // (removed) per-item flat discount amount - using percentage only
     },
     {
-        tableName: "sale_records",
+        tableName: "item_sales",
         underscored: true,
-        timestamps: true
+        timestamps: true,
     }
 );
 
-// Optional association helper. If your project sets up associations centrally, this is safe to keep.
-Item.associate = (models) => {
-    if (models.Biller) {
-        Item.belongsTo(models.Biller, { foreignKey: 'biller_id', as: 'biller' });
+// Provide an associate helper; associations will be initialized by `src/models/associations.js`.
+ItemSale.associate = (models) => {
+    if (models.Bill) {
+        ItemSale.belongsTo(models.Bill, { foreignKey: "bill_id", as: "bill" });
     }
 };
 

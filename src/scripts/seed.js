@@ -4,8 +4,8 @@ import bcrypt from 'bcrypt';
 import { User } from '../models/user.model.js';
 import { Product } from '../models/product.model.js';
 import { Stock } from '../models/stock.model.js';
-import { Biller } from '../models/bill.model.js';
-import { Item } from '../models/item-sale.model.js';
+import { Bill } from '../models/bill.model.js';
+import { ItemSale } from '../models/item-sale.model.js';
 
 const seed = async () => {
   try {
@@ -61,25 +61,19 @@ const seed = async () => {
     }
 
     // Bills + Items
-    const billCount = await Biller.count();
+    const billCount = await Bill.count();
     if (billCount === 0) {
-      const bill = await Biller.create({
-        name: 'Seed Invoice 1',
-        description: 'Invoice created by seed script',
-        date: new Date().toISOString().split('T')[0],
-        cost: '0.00',
-        discount: '0.00',
-        price: '44.00',
-        discount_perc: '0',
-        item_qty: 2,
-        contact_number: '0000000000',
-        customer_id: null,
-        seller_id: null
+      const bill = await Bill.create({
+        bill_number: `BILL-${Date.now()}`,
+        customer_name: 'Seed Customer',
+        date: new Date(),
+        total_amount: 0,
+        status: 'pending'
       });
 
-      await Item.bulkCreate([
-        { name: p1.name, description: p1.description, date: new Date(), cost: p1.cost, mrp: p1.mrp, qty: 1, unit: p1.unit, biller_id: bill.id },
-        { name: p2.name, description: p2.description, date: new Date(), cost: p2.cost, mrp: p2.mrp, qty: 1, unit: p2.unit, biller_id: bill.id }
+      await ItemSale.bulkCreate([
+        { product_id: p1.id, product_name: p1.name, sku: p1.sku, variant_id: p1.variant_id, quantity: 1, unit_price: parseFloat(p1.mrp || 0), subtotal: parseFloat(p1.mrp || 0), bill_id: bill.id },
+        { product_id: p2.id, product_name: p2.name, sku: p2.sku, variant_id: p2.variant_id, quantity: 1, unit_price: parseFloat(p2.mrp || 0), subtotal: parseFloat(p2.mrp || 0), bill_id: bill.id }
       ]);
       console.log('Created sample bill and items');
     } else {

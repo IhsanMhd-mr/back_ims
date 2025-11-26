@@ -1,15 +1,15 @@
 import bcrypt from "bcrypt";
 import { User } from "../models/user.model.js"
-import { Item } from "../models/item-sale.model.js"
-import { Biller } from "../models/bill.model.js"
+import { ItemSale } from "../models/item-sale.model.js"
+import { Bill } from "../models/bill.model.js"
 import sequelize from "../config/db.js"
 import { Op } from 'sequelize';
 
 const UserRepo = {
   getUserx: async (userId) => { // to create tables only
     try {
-      const result1 = await Item.findAll({});
-      const result2 = await Biller.findAll({});
+      const result1 = await ItemSale.findAll({});
+      const result2 = await Bill.findAll({});
       return { result1, result2 };
     } catch (error) {
       throw error;

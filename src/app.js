@@ -15,6 +15,7 @@ import billRouter from "./routes/bill.router.js";
 import requestLogger from './middlewares/request.logger.js';
 import idDisplayer from './middlewares/id.displayer.js';
 import errorLogger from './middlewares/error.logger.js';
+import './models/associations.js';
 
 
 
@@ -33,12 +34,23 @@ const corsOptions = {
     origin: function (origin, callback) {
         // Allow requests with no origin (like curl) or from allowed dev origins
         if (!origin) return callback(null, true);
+        
         if (process.env.NODE_ENV === 'production') {
             const allowed = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',').map(s => s.trim()) : [];
-            return callback(null, allowed.includes(origin));
+            
+            // Allow GitHub Pages origins (*.github.io) by default for deployment ease
+            const isGitHubPages = origin.endsWith('.github.io') || origin === 'https://ihsanmhd-mr.github.io';
+            
+            // Log CORS decision for troubleshooting
+            console.log(`[CORS] origin="${origin}" allowed=${allowed.includes(origin) || isGitHubPages} (env: ${allowed.length} origins, isGitHubPages: ${isGitHubPages})`);
+            
+            return callback(null, allowed.includes(origin) || isGitHubPages);
         }
+        
         // development - check against local allowed list
-        return callback(null, DEV_FRONTEND_ORIGINS.includes(origin));
+        const devAllowed = DEV_FRONTEND_ORIGINS.includes(origin);
+        console.log(`[CORS] dev origin="${origin}" allowed=${devAllowed}`);
+        return callback(null, devAllowed);
     },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: [

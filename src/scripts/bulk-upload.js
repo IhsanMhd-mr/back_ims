@@ -6,8 +6,8 @@ import { Product } from '../models/product.model.js';
 import { Stock } from '../models/stock.model.js';
 import { Material } from '../models/mat.model.js';
 import { Sale } from '../models/sale.model.js';
-import { Biller } from '../models/bill.model.js';
-import { Item } from '../models/item-sale.model.js';
+import { Bill } from '../models/bill.model.js';
+import { ItemSale } from '../models/item-sale.model.js';
 
 const ensureCount = async (Model, makeFn, name, target = 5) => {
   const count = await Model.count();
@@ -85,35 +85,31 @@ const run = async () => {
     }), 'Sale');
 
     // Bills and items
-    const billCount = await Biller.count();
+    const billCount = await Bill.count();
     let createdBills = 0;
     for (let i = billCount + 1; i <= 5; i++) {
-      const bill = await Biller.create({
-        name: `Invoice ${i}`,
-        description: `Bulk invoice ${i}`,
-        date: new Date().toISOString().split('T')[0],
-        cost: (0).toFixed(2),
-        discount: (0).toFixed(2),
-        price: (15 * i).toFixed(2),
-        discount_perc: '0',
-        item_qty: 1,
-        contact_number: `090000${i}`
+      const bill = await Bill.create({
+        bill_number: `BULK-${Date.now()}-${i}`,
+        customer_name: `Bulk Customer ${i}`,
+        date: new Date(),
+        total_amount: 0,
+        status: 'pending'
       });
       // create an item for the bill referencing a product
       const prod = products[(i - 1) % products.length];
-      await Item.create({
-        name: prod.name,
-        description: prod.description,
-        date: new Date(),
-        cost: prod.cost,
-        mrp: prod.mrp,
-        qty: 1,
-        unit: prod.unit,
-        biller_id: bill.id
+      await ItemSale.create({
+        product_id: prod.id,
+        product_name: prod.name,
+        sku: prod.sku,
+        variant_id: prod.variant_id,
+        quantity: 1,
+        unit_price: parseFloat(prod.mrp || 0),
+        subtotal: parseFloat(prod.mrp || 0),
+        bill_id: bill.id
       });
       createdBills++;
     }
-    console.log(`Biller: had ${billCount} rows, created ${createdBills} new rows`);
+    console.log(`Bills: had ${billCount} rows, created ${createdBills} new rows`);
 
     console.log('Bulk upload complete');
     process.exit(0);
