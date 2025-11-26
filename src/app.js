@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import 'dotenv/config';
 import sequelize, { testConnection } from "./config/db.js";
 
 // Import routes
@@ -23,59 +24,79 @@ import './models/associations.js';
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Define CORS options
-// In development explicitly allow Vite dev server origins used by preview (4173) and dev (5173)
-const DEV_FRONTEND_ORIGINS = (process.env.DEV_FRONTEND_ORIGINS || 'http://localhost:5173,http://localhost:4173')
-  .split(',')
-  .map(s => s.trim())
-  .filter(Boolean);
-
-const corsOptions = {
-    origin: function (origin, callback) {
-        // Allow requests with no origin (like curl) or from allowed dev origins
-        if (!origin) return callback(null, true);
-        
-        if (process.env.NODE_ENV === 'production') {
-            const allowed = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',').map(s => s.trim()) : [];
-            
-            // Allow GitHub Pages origins (*.github.io) by default for deployment ease
-            const isGitHubPages = origin.endsWith('.github.io') || origin === 'https://ihsanmhd-mr.github.io';
-            
-            // Log CORS decision for troubleshooting
-            console.log(`[CORS] origin="${origin}" allowed=${allowed.includes(origin) || isGitHubPages} (env: ${allowed.length} origins, isGitHubPages: ${isGitHubPages})`);
-            
-            return callback(null, allowed.includes(origin) || isGitHubPages);
+// CORS configuration (Option 3 - detect environment)
+// Build allowed origins list from env (preferred) or sensible defaults.
+// Normalize entries: strip quotes, add protocol if missing, remove paths, dedupe.
+const parseAllowedOrigins = (raw) => {
+    if (!raw) return [];
+    const parts = raw.split(',').map(s => s.trim()).filter(Boolean);
+    const origins = parts.map(p => {
+        // remove surrounding quotes if any
+        let v = p.replace(/^\"+|\"+$/g, '').replace(/^\'+|\'+$/g, '');
+        try {
+            // Try to parse as URL; if it contains a path, URL.origin will strip it
+            const u = new URL(v);
+            return u.origin;
+        } catch (e) {
+            try {
+                // Prepend http if protocol missing
+                const u2 = new URL('http://' + v);
+                return u2.origin;
+            } catch (e2) {
+                return null;
+            }
         }
-        
-        // development - check against local allowed list
-        const devAllowed = DEV_FRONTEND_ORIGINS.includes(origin);
-        console.log(`[CORS] dev origin="${origin}" allowed=${devAllowed}`);
-        return callback(null, devAllowed);
-    },
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: [
-        'Content-Type',
-        'X-Requested-With',
-        'Authorization'
-    ],
-    // Allow credentials when we have a specific origin
-    credentials: true,
-    optionsSuccessStatus: 200
+    }).filter(Boolean);
+    // dedupe while preserving order
+    return Array.from(new Set(origins));
 };
 
-// Middleware
-app.use(cors(corsOptions));
-// Render sometimes blocks CORS; add a permissive header fallback above routes
-// This ensures Render or other proxies do not strip CORS headers during deployment.
+let allowedOrigins = parseAllowedOrigins(process.env.ALLOWED_ORIGINS);
+if (!allowedOrigins || allowedOrigins.length === 0) {
+    allowedOrigins = [
+        'http://localhost:5173',
+        'http://localhost:3000',
+        'https://ihsanmhd-mr.github.io'
+    ];
+}
+
+app.use(cors({
+    origin: (origin, callback) => {
+        // Allow server-to-server or curl requests with no origin
+        if (!origin) return callback(null, true);
+
+        // In development allow local origins; in production allow ALLOWED_ORIGINS or GitHub Pages
+        if (process.env.NODE_ENV === 'production') {
+            const isGitHubPages = origin.endsWith('.github.io') || origin === 'https://ihsanmhd-mr.github.io';
+            const allowed = allowedOrigins.includes(origin) || isGitHubPages;
+            if (!allowed) return callback(new Error('CORS blocked'));
+            return callback(null, true);
+        }
+
+        // development: allow specified local origins
+        if (allowedOrigins.includes(origin)) return callback(null, true);
+        return callback(new Error('CORS blocked in dev'));
+    },
+    credentials: true
+}));
+
+// Render sometimes strips headers; add a fallback that echoes origin when allowed
 app.use((req, res, next) => {
-    // During testing you may want to allow all origins; in production prefer a specific list.
-    res.header("Access-Control-Allow-Origin", process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',')[0] : "*");
-    res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
-    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
-    // If it's a preflight request, respond immediately
+    const origin = req.headers.origin;
+    if (origin && allowedOrigins.includes(origin)) {
+        res.header('Access-Control-Allow-Origin', origin);
+    } else if (!origin) {
+        res.header('Access-Control-Allow-Origin', '*');
+    } else {
+        // default to first allowed origin to avoid blocking proxies; override in production via env
+        res.header('Access-Control-Allow-Origin', allowedOrigins[0] || '*');
+    }
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
     if (req.method === 'OPTIONS') return res.sendStatus(200);
     next();
 });
+
 app.use(express.json());
 
 // Request logger (assigns short requestId and logs basic request info)
