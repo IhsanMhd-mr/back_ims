@@ -65,6 +65,17 @@ const corsOptions = {
 
 // Middleware
 app.use(cors(corsOptions));
+// Render sometimes blocks CORS; add a permissive header fallback above routes
+// This ensures Render or other proxies do not strip CORS headers during deployment.
+app.use((req, res, next) => {
+    // During testing you may want to allow all origins; in production prefer a specific list.
+    res.header("Access-Control-Allow-Origin", process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',')[0] : "*");
+    res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
+    // If it's a preflight request, respond immediately
+    if (req.method === 'OPTIONS') return res.sendStatus(200);
+    next();
+});
 app.use(express.json());
 
 // Request logger (assigns short requestId and logs basic request info)
