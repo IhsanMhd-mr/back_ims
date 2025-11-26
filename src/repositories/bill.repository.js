@@ -120,13 +120,53 @@ const BillRepo = {
     }
   },
 
-  deleteBill: async (id) => {
+  // options: { force: boolean, deleted_by: integer }
+  deleteBill: async (id, options = {}) => {
+    const { force = false, deleted_by = null } = options || {};
+    const t = await sequelize.transaction();
     try {
-      const rec = await Bill.findByPk(id);
-      if (!rec) return { success: false, message: 'Bill not found' };
-      await rec.destroy();
-      return { success: true, message: 'Bill deleted' };
+      // Find including soft-deleted records so we can hard-delete when requested
+      const rec = await Bill.findByPk(id, { include: [{ model: ItemSale, as: 'items' }], transaction: t, paranoid: false });
+      if (!rec) {
+        await t.rollback();
+        return { success: false, message: 'Bill not found' };
+      }
+
+      // If deleted_by provided, set it on items first (so audit is recorded)
+      const items = rec.items || [];
+      if (deleted_by && items.length > 0) {
+        await Promise.all(items.map(i => i.update({ deleted_by }, { transaction: t })));
+      }
+
+      // Destroy child ItemSale rows first. Only if this succeeds (rows removed/soft-deleted)
+      // do we proceed to destroy the bill.
+      let destroyedCount = 0;
+      if (items.length > 0) {
+        destroyedCount = await ItemSale.destroy({ where: { bill_id: id }, transaction: t, force });
+        // If the number of affected rows doesn't match the expected items count, treat as failure
+        if (destroyedCount !== items.length) {
+          await t.rollback();
+          return { success: false, message: `Failed to delete all item sales (${destroyedCount}/${items.length})` };
+        }
+      }
+
+      // All child deletes succeeded (or there were no items). Now set deleted_by on bill (if provided)
+      if (deleted_by) {
+        try {
+          await rec.update({ deleted_by }, { transaction: t });
+        } catch (e) {
+          await t.rollback();
+          return { success: false, message: 'Failed to set deleted_by on bill' };
+        }
+      }
+
+      // Finally destroy the bill (soft by default, hard if force)
+      await rec.destroy({ transaction: t, force });
+
+      await t.commit();
+      return { success: true, message: force ? 'Bill permanently deleted' : 'Bill deleted' };
     } catch (err) {
+      await t.rollback();
       return { success: false, message: err.message };
     }
   }
