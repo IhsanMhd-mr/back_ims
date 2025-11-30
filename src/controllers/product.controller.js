@@ -64,6 +64,54 @@ const ProductController = {
         }
     },
 
+    getSummaries: async (req, res) => {
+        try {
+            const traceId = req.traceId || req.requestId || 'no-trace';
+            const page = Number(req.query.page) || 1;
+            const limit = Number(req.query.limit) || 20;
+            const filters = {};
+            if (req.query.status) filters.status = req.query.status;
+            if (req.query.name) filters.name = req.query.name;
+            if (req.query.sku) filters.sku = req.query.sku;
+
+            const result = await ProductRepo.getProductSummaries({ page, limit, filters });
+            if (result.success) return res.status(200).json(result);
+            return res.status(400).json(result);
+        } catch (err) {
+            const traceId = req.traceId || req.requestId || 'no-trace';
+            console.error(`[ProductController][${traceId}] GET SUMMARIES - Error:`, err.message);
+            return res.status(500).json({ success: false, message: err.message, traceId });
+        }
+    },
+
+    // GET /product/skus - return unique sku + name pairs
+    listSkus: async (req, res) => {
+        try {
+            const result = await ProductRepo.getSkuGroups();
+            if (result.success) return res.status(200).json(result);
+            return res.status(400).json(result);
+        } catch (err) {
+            const traceId = req.traceId || req.requestId || 'no-trace';
+            console.error(`[ProductController][${traceId}] LIST SKUS - Error:`, err.message);
+            return res.status(500).json({ success: false, message: err.message, traceId });
+        }
+    },
+
+    // GET /product/skus/:sku - return all product variants for a given sku
+    getSkuVariants: async (req, res) => {
+        try {
+            const sku = String(req.params.sku || '').trim();
+            if (!sku) return res.status(400).json({ success: false, message: 'sku is required' });
+            const result = await ProductRepo.getProductsBySku(sku);
+            if (result.success) return res.status(200).json(result);
+            return res.status(400).json(result);
+        } catch (err) {
+            const traceId = req.traceId || req.requestId || 'no-trace';
+            console.error(`[ProductController][${traceId}] GET SKU VARIANTS - Error:`, err.message);
+            return res.status(500).json({ success: false, message: err.message, traceId });
+        }
+    },
+
     getById: async (req, res) => {
         try {
             const traceId = req.traceId || req.requestId || 'no-trace';

@@ -30,14 +30,12 @@ const ProductRepo = {
             console.log('[ProductRepo] GET ALL - Query params:', { page, limit, filters });
             const offset = (page - 1) * limit;
             const where = { ...filters };
-            const { rows: data, count: total } = await Product.findAndCountAll(
-                {
+            const { rows: data, count: total } = await Product.findAndCountAll({
                 where,
                 order,
                 limit,
                 offset
-            }
-        );
+            });
             console.log('[ProductRepo] GET ALL - Query result:', { recordCount: data.length, total, pages: Math.ceil(total / limit) });
 
             return {
@@ -52,6 +50,50 @@ const ProductRepo = {
             };
         } catch (error) {
             console.error('[ProductRepo] GET ALL - Query error:', error.message);
+            return { success: false, message: error.message };
+        }
+    },
+
+    // Return a lightweight product list with selected attributes for frontends
+    getProductSummaries: async ({ page = 1, limit = 20, filters = {}, order = [['createdAt', 'DESC']] } = {}) => {
+        try {
+            const offset = (page - 1) * limit;
+            // build where clause; support name partial match alongside other filters
+            const where = {};
+            if (filters) {
+                if (filters.status) where.status = filters.status;
+                if (filters.name) where.name = { [Op.iLike]: `%${filters.name}%` };
+                if (filters.sku) where.sku = filters.sku;
+            }
+            const attributes = ['id','sku','variant_id','name','cost','mrp','quantity','unit','tags','status'];
+            const { rows: data, count: total } = await Product.findAndCountAll({ where, order, limit, offset, attributes });
+            return {
+                success: true,
+                data,
+                meta: { total, page, limit, pages: Math.ceil(total / limit) }
+            };
+        } catch (error) {
+            return { success: false, message: error.message };
+        }
+    },
+
+    // Return distinct SKU groups (sku + name) for listing
+    getSkuGroups: async ({ order = [['sku', 'ASC']] } = {}) => {
+        try {
+            const data = await Product.findAll({ attributes: ['sku', 'name'], group: ['sku', 'name'], order });
+            return { success: true, data };
+        } catch (error) {
+            return { success: false, message: error.message };
+        }
+    },
+
+    // Return full product records for a given SKU (all variants)
+    getProductsBySku: async (sku) => {
+        try {
+            if (!sku) return { success: false, message: 'sku is required' };
+            const data = await Product.findAll({ where: { sku }, order: [['variant_id', 'ASC']] });
+            return { success: true, data };
+        } catch (error) {
             return { success: false, message: error.message };
         }
     },

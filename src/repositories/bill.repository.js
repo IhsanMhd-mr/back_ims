@@ -120,13 +120,40 @@ const BillRepo = {
     }
   },
 
-  deleteBill: async (id) => {
+  // options: { force: boolean, deleted_by: integer }
+  deleteBill: async (id, options = {}) => {
+    const { force = false, deleted_by = null } = options || {};
+
+    // Quick existence check before starting a transaction to avoid unnecessary rollbacks
+    const existing = await Bill.findByPk(id, { paranoid: false });
+    if (!existing) return { success: false, message: 'Bill not found' };
+
+    const t = await sequelize.transaction();
     try {
-      const rec = await Bill.findByPk(id);
-      if (!rec) return { success: false, message: 'Bill not found' };
-      await rec.destroy();
-      return { success: true, message: 'Bill deleted' };
+      // Load item rows inside the transaction for consistent reads
+      const items = await ItemSale.findAll({ where: { bill_id: id }, transaction: t, paranoid: false });
+
+      // Record who deleted the items (if provided)
+      if (deleted_by && items.length) {
+        await Promise.all(items.map(i => i.update({ deleted_by }, { transaction: t })));
+      }
+
+      // Delete items first. If the affected row count doesn't match the items length, abort.
+      if (items.length) {
+        const destroyedCount = await ItemSale.destroy({ where: { bill_id: id }, transaction: t, force });
+        if (destroyedCount !== items.length) throw new Error(`Failed to delete all item sales (${destroyedCount}/${items.length})`);
+      }
+
+      // Set deleted_by on bill (if provided)
+      if (deleted_by) await existing.update({ deleted_by }, { transaction: t });
+
+      // Finally delete the bill (soft by default, hard if force)
+      await existing.destroy({ transaction: t, force });
+
+      await t.commit();
+      return { success: true, message: force ? 'Bill permanently deleted' : 'Bill deleted' };
     } catch (err) {
+      await t.rollback();
       return { success: false, message: err.message };
     }
   }

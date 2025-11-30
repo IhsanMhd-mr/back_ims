@@ -6,6 +6,9 @@ const router = express.Router();
 router.post('/add', ProductController.create);
 router.post('/clone', ProductController.cloneWithPrice);
 router.get('/getAll', ProductController.getAll);
+router.get('/list', ProductController.getSummaries);
+router.get('/grouped_list', ProductController.listSkus);
+router.get('/sku/:sku', ProductController.getSkuVariants);
 router.get('/search', ProductController.search);
 router.get('/get/:id', ProductController.getById);
 router.put('/put/:id', ProductController.update); // update updated by

@@ -131,6 +131,7 @@ const BillController = {
     try {
       const id = Number(req.params.id);
       const payload = req.body || {};
+      console.log('Update Bill Payload:------------------<<<<<<<', payload);
       const result = await BillRepo.updateBill(id, payload);
       if (result.success) return res.status(200).json(result);
       if (result.message === 'Bill not found') return res.status(404).json(result);
@@ -143,7 +144,9 @@ const BillController = {
   delete: async (req, res) => {
     try {
       const id = Number(req.params.id);
-      const result = await BillRepo.deleteBill(id);
+      const force = (req.query.force === 'true') || (req.body && req.body.force === true);
+      const deleted_by = Number(req.body?.deleted_by || req.query?.deleted_by || 0) || null;
+      const result = await BillRepo.deleteBill(id, { force, deleted_by });
       if (result.success) return res.status(200).json(result);
       if (result.message === 'Bill not found') return res.status(404).json(result);
       return res.status(400).json(result);

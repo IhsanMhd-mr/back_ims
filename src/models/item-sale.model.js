@@ -48,12 +48,17 @@ export const ItemSale = sequelize.define(
             allowNull: true,
             defaultValue: 0,
         },
+        deleted_by: {
+            type: DataTypes.INTEGER,
+            allowNull: true,
+        },
         // (removed) per-item flat discount amount - using percentage only
     },
     {
         tableName: "item_sales",
         underscored: true,
         timestamps: true,
+        paranoid: true,
     }
 );
 
