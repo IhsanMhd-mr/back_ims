@@ -131,6 +131,7 @@ const BillController = {
     try {
       const id = Number(req.params.id);
       const payload = req.body || {};
+      console.log('Update Bill Payload:------------------<<<<<<<', payload);
       const result = await BillRepo.updateBill(id, payload);
       if (result.success) return res.status(200).json(result);
       if (result.message === 'Bill not found') return res.status(404).json(result);
