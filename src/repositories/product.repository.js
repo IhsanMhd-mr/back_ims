@@ -114,6 +114,24 @@ const ProductRepo = {
         }
     },
 
+    // Find a product by its variant_id (string identifier)
+    getProductByVariantId: async (variantId) => {
+        try {
+            if (!variantId) return { success: false, message: 'variantId is required' };
+            console.log('[ProductRepo] GET BY VARIANT - Fetching product with variant_id:', variantId);
+            const product = await Product.findOne({ where: { variant_id: variantId } });
+            if (!product) {
+                console.log('[ProductRepo] GET BY VARIANT - Product not found');
+                return { success: false, message: 'Product not found' };
+            }
+            console.log('[ProductRepo] GET BY VARIANT - Product found:', product.id);
+            return { success: true, data: product };
+        } catch (error) {
+            console.error('[ProductRepo] GET BY VARIANT - Error:', error.message);
+            return { success: false, message: error.message };
+        }
+    },
+
     updateProduct: async (id, updateData) => {
         try {
             const product = await Product.findByPk(id);

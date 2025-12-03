@@ -14,6 +14,7 @@ const CustomerRepo = {
   getByUniqueId: async (uniqueId) => {
     try {
       const result = await Customer.findOne({ where: { unique_id: uniqueId } });
+      console.log('CustomerRepo getByUniqueId result:', result);
       if (!result) return { success: true, available: true };
       return { success: true, available: false, data: result };
     } catch (error) {

@@ -129,6 +129,22 @@ const ProductController = {
         }
     },
 
+    // GET /product/variant/:variant_id - fetch single product variant by its variant_id
+    getByVariantId: async (req, res) => {
+        try {
+            const traceId = req.traceId || req.requestId || 'no-trace';
+            const variantId = String(req.params.variant_id || '').trim();
+            if (!variantId) return res.status(400).json({ success: false, message: 'variant_id is required' });
+            const result = await ProductRepo.getProductByVariantId(variantId);
+            if (!result.success) return res.status(404).json(result);
+            return res.status(200).json(result);
+        } catch (err) {
+            const traceId = req.traceId || req.requestId || 'no-trace';
+            console.error(`[ProductController][${traceId}] GET BY VARIANT - Error:`, err.message);
+            return res.status(500).json({ success: false, message: err.message, traceId });
+        }
+    },
+
     update: async (req, res) => {
         try {
             const traceId = req.traceId || req.requestId || 'no-trace';
