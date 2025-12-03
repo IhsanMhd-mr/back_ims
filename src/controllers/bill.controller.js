@@ -14,6 +14,7 @@ const BillController = {
   create: async (req, res) => {
     const t = await sequelize.transaction();
     try {
+      if (!req.body.customer_name) req.body.customer_name = req.body.customer;
       const { customer_name, products } = req.body || {};
       if (!customer_name) return res.status(400).json({ success: false, message: 'customer_name is required' });
       if (!Array.isArray(products) || products.length === 0) return res.status(400).json({ success: false, message: 'products array is required' });
