@@ -20,58 +20,14 @@ const StockController = {
             if (req.query.status) filters.status = req.query.status;
             if (req.query.product_id) filters.product_id = Number(req.query.product_id);
 
-            // Time period support: accept start/end ISO dates or year+month or named `period`
+            // Time period support: accept start/end ISO dates or year+month
             const startRaw = req.query.start || req.query.start_date || null;
             const endRaw = req.query.end || req.query.end_date || null;
             const year = req.query.year ? Number(req.query.year) : null;
             const month = req.query.month ? Number(req.query.month) : null;
-            const period = (req.query.period || '').toString().trim().toLowerCase();
 
-            // helper to map named periods to start/end
-            const periodToRange = (name, asOfRaw) => {
-                const asOf = asOfRaw ? new Date(asOfRaw) : new Date();
-                const now = new Date(asOf);
-                let start = null; let end = null;
-                switch (name) {
-                    case 'today':
-                        start = new Date(now); start.setHours(0,0,0,0);
-                        end = new Date(now); end.setHours(23,59,59,999);
-                        break;
-                    case 'yesterday':
-                        start = new Date(now); start.setDate(start.getDate() - 1); start.setHours(0,0,0,0);
-                        end = new Date(start); end.setHours(23,59,59,999);
-                        break;
-                    case 'this_month':
-                    case 'thismonth':
-                    case 'month':
-                        start = new Date(now.getFullYear(), now.getMonth(), 1); start.setHours(0,0,0,0);
-                        end = new Date(now); end.setHours(23,59,59,999);
-                        break;
-                    case 'last_three_months':
-                    case 'last3':
-                    case 'last_three':
-                        start = new Date(now); start.setMonth(start.getMonth() - 3); start.setHours(0,0,0,0);
-                        end = new Date(now); end.setHours(23,59,59,999);
-                        break;
-                    case 'this_year':
-                    case 'year':
-                        start = new Date(now.getFullYear(), 0, 1); start.setHours(0,0,0,0);
-                        end = new Date(now); end.setHours(23,59,59,999);
-                        break;
-                    default:
-                        return null;
-                }
-                return { start: start.toISOString(), end: end.toISOString() };
-            };
-
-            if (period) {
-                const asOf = req.query.asOf || req.query.as_of || null;
-                const rng = periodToRange(period, asOf);
-                if (rng) {
-                    filters.start_date = rng.start;
-                    filters.end_date = rng.end;
-                }
-            } else if (year && month) {
+            // Note: `getAll` intentionally ignores named `period` shortcuts — use `/stock/period` for that.
+            if (year && month) {
                 // build start = first day of month, end = last moment of month
                 const start = new Date(year, month - 1, 1);
                 const end = new Date(year, month, 0);
@@ -96,6 +52,73 @@ const StockController = {
         }
     },
 
+    // GET /stock/period - period-aware listing that applies named period shortcuts
+    getByPeriod: async (req, res) => {
+        try {
+            const page = Number(req.query.page) || 1;
+            const limit = Number(req.query.limit) || 20;
+            const filters = {};
+            if (req.query.status) filters.status = req.query.status;
+            if (req.query.product_id) filters.product_id = Number(req.query.product_id);
+
+            // apply named periods and asOf via shared helper
+            StockController._applyPeriodToFilters(req, filters);
+
+            // if year/month or explicit start/end were provided, the helper won't override them;
+            // keep precedence: year/month -> start/end handled by repo if present in filters
+            const startRaw = req.query.start || req.query.start_date || null;
+            const endRaw = req.query.end || req.query.end_date || null;
+            const year = req.query.year ? Number(req.query.year) : null;
+            const month = req.query.month ? Number(req.query.month) : null;
+            if (year && month) {
+                const start = new Date(year, month - 1, 1);
+                const end = new Date(year, month, 0);
+                end.setHours(23, 59, 59, 999);
+                filters.start_date = start.toISOString();
+                filters.end_date = end.toISOString();
+            } else if (startRaw || endRaw) {
+                if (startRaw) filters.start_date = new Date(startRaw).toISOString();
+                if (endRaw) {
+                    const e = new Date(endRaw);
+                    if (e.getHours() === 0 && e.getMinutes() === 0 && e.getSeconds() === 0) e.setHours(23, 59, 59, 999);
+                    filters.end_date = e.toISOString();
+                }
+            }
+
+            // If the user asked for the last_three_months period, return the snapshot-before-window + ledger records
+            const period = (req.query.period || '').toString().trim().toLowerCase();
+            const asOf = req.query.asOf || req.query.as_of || null;
+            if (period === 'last_three_months' || period === 'last3' || period === 'last_three') {
+                const view = await StockRepo.getLastThreeMonthsView({ asOf });
+                if (!view || !view.success) return res.status(400).json({ success: false, message: view?.message || 'Failed to get last three months view' });
+                // snapshotRows is the snapshot before the window; records are ledger rows in the window
+                return res.status(200).json({ success: true, snapshotInfo: view.data.snapshotInfo, summary: view.data.snapshotRows, stocks: view.data.records, start: view.data.start, end: view.data.end });
+            }
+
+            // Otherwise behave as before: fetch summary then ledger rows
+            let summaryResult = null;
+            if (year && month) {
+                summaryResult = await StockRepo.getMonthlySummary({ year, month });
+            } else {
+                summaryResult = await StockRepo.getStockSummaryWithSnapshot();
+            }
+            if (!summaryResult || !summaryResult.success) return res.status(400).json({ success: false, message: summaryResult?.message || 'Failed to get stock summary' });
+
+            const stocksResult = await StockRepo.getStocks({ page, limit, filters });
+            if (!stocksResult || !stocksResult.success) return res.status(400).json({ success: false, message: stocksResult?.message || 'Failed to get stock records' });
+
+            // Optionally filter summary to a specific product_id if requested
+            let summaryData = summaryResult.data || [];
+            if (filters.product_id) {
+                summaryData = (Array.isArray(summaryData) ? summaryData : []).filter(s => Number(s.product_id) === Number(filters.product_id));
+            }
+
+            return res.status(200).json({ success: true, summary: summaryData, stocks: stocksResult.data, meta: stocksResult.meta });
+        } catch (err) {
+            return res.status(500).json({ success: false, message: err.message });
+        }
+    },
+
     search: async (req, res) => {
         try {
             const searchTerm = req.query.q || req.query.search || '';
@@ -112,13 +135,50 @@ const StockController = {
     // GET /stock/summary - return aggregated stock per product
     summary: async (req, res) => {
         try {
-            // if month/year query provided, return stored snapshot
+            // differentiate period behavior:
+            // - if period=last_three_months -> return the last-three-months view (snapshot-before-window + ledger records)
+            // - if year+month -> return stored monthly snapshot
+            // - if period (other) or start/end provided -> compute aggregated totals within that range
+            // - otherwise -> return snapshot-aware aggregated summary
+
+            const period = (req.query.period || '').toString().trim().toLowerCase();
+            const asOf = req.query.asOf || req.query.as_of || null;
+
+            if (period === 'last_three_months' || period === 'last3' || period === 'last_three') {
+                const view = await StockRepo.getLastThreeMonthsView({ asOf });
+                if (!view || !view.success) return res.status(400).json({ success: false, message: view?.message || 'Failed to get last three months view' });
+                return res.status(200).json({ success: true, snapshotInfo: view.data.snapshotInfo, summary: view.data.snapshotRows, stocks: view.data.records, start: view.data.start, end: view.data.end });
+            }
+
             const year = req.query.year ? Number(req.query.year) : null;
             const month = req.query.month ? Number(req.query.month) : null;
             if (year && month) {
                 const result = await StockRepo.getMonthlySummary({ year, month });
                 if (result.success) return res.status(200).json(result);
                 return res.status(400).json(result);
+            }
+
+            // if a named period or explicit start/end is provided, compute range and aggregate within it
+            const startRaw = req.query.start || req.query.start_date || null;
+            const endRaw = req.query.end || req.query.end_date || null;
+            if (period || startRaw || endRaw) {
+                const filters = {};
+                if (req.query.product_id) filters.product_id = Number(req.query.product_id);
+                // apply named period if present
+                if (period) StockController._applyPeriodToFilters(req, filters);
+                // explicit start/end override
+                let start = filters.start_date || (startRaw ? new Date(startRaw).toISOString() : null);
+                let end = filters.end_date || null;
+                if (endRaw && !filters.end_date) {
+                    const e = new Date(endRaw);
+                    if (e.getHours() === 0 && e.getMinutes() === 0 && e.getSeconds() === 0) e.setHours(23, 59, 59, 999);
+                    end = e.toISOString();
+                }
+                if (!start || !end) return res.status(400).json({ success: false, message: 'start and end dates required for period summary' });
+                const product_id = filters.product_id || null;
+                const rangeResult = await StockRepo.getStockSummaryInRange({ start_date: start, end_date: end, product_id });
+                if (!rangeResult || !rangeResult.success) return res.status(400).json({ success: false, message: rangeResult?.message || 'Failed to compute range summary' });
+                return res.status(200).json({ success: true, summary: rangeResult.data, start, end });
             }
 
             // otherwise return snapshot-aware aggregated summary

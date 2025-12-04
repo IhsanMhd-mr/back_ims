@@ -182,6 +182,28 @@ const StockRepo = {
         }
     },
 
+    // Aggregate stock within a specific date range (inclusive). Accepts ISO strings or Date objects.
+    getStockSummaryInRange: async ({ start_date, end_date, product_id = null } = {}) => {
+        try {
+            if (!start_date || !end_date) return { success: false, message: 'start_date and end_date required' };
+            const start = (typeof start_date === 'string') ? new Date(start_date) : start_date;
+            const end = (typeof end_date === 'string') ? new Date(end_date) : end_date;
+            if (isNaN(start.getTime()) || isNaN(end.getTime())) return { success: false, message: 'Invalid date range' };
+
+            let sql = `SELECT s.product_id, SUM(s.qty) as total_qty FROM stocks s WHERE s.status = 'active' AND s.created_at >= :start AND s.created_at <= :end`;
+            const replacements = { start: start.toISOString(), end: end.toISOString() };
+            if (product_id) {
+                sql += ` AND s.product_id = :product_id`;
+                replacements.product_id = Number(product_id);
+            }
+            sql += ` GROUP BY s.product_id`;
+            const [rows] = await Stock.sequelize.query(sql, { replacements, type: Stock.sequelize.QueryTypes.SELECT });
+            return { success: true, data: rows };
+        } catch (error) {
+            return { success: false, message: error.message };
+        }
+    },
+
     // Create a stock adjustment record (positive or negative qty) with a note
     adjustStock: async ({ product_id, variant_id, qty, note = '', approver_id = null, createdBy = null }) => {
         try {

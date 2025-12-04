@@ -5,6 +5,8 @@ const router = express.Router();
 // --- Ledger (stock transactions) -----------------------------------------
 router.post('/add', StockController.create);
 router.get('/getAll', StockController.getAll);
+// period-aware listing: supports named `period` (today, this_month, last_three_months) and `asOf`
+router.get('/period', StockController.getByPeriod);
 router.get('/get/:id', StockController.getById);
 router.get('/search', StockController.search);
 
