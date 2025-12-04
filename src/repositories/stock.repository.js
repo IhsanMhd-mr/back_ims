@@ -357,6 +357,40 @@ const StockRepo = {
             return { success: false, message: error.message };
         }
     }
+
+    ,
+
+    // Return a view for the last three months: include a snapshot (if available) taken before
+    // the 3-month window, plus the ledger records for the last three months.
+    getLastThreeMonthsView: async ({ asOf = null } = {}) => {
+        try {
+            const now = asOf ? new Date(asOf) : new Date();
+            // compute start date 3 months ago (beginning of day)
+            const start = new Date(now);
+            start.setMonth(start.getMonth() - 3);
+            start.setHours(0,0,0,0);
+
+            const ym = (start.getFullYear() * 100) + (start.getMonth() + 1);
+
+            // find latest snapshot with year/month <= ym
+            const sqlFind = `SELECT year, month FROM stock_monthly_summaries WHERE (year*100 + month) <= :ym ORDER BY year DESC, month DESC LIMIT 1`;
+            const [found] = await Stock.sequelize.query(sqlFind, { replacements: { ym }, type: Stock.sequelize.QueryTypes.SELECT });
+            let snapshotInfo = null;
+            let snapshotRows = [];
+            if (found && found.year) {
+                snapshotInfo = { year: Number(found.year), month: Number(found.month) };
+                snapshotRows = await Stock.sequelize.models.StockMonthlySummary.findAll({ where: { year: snapshotInfo.year, month: snapshotInfo.month } });
+            }
+
+            // ledger records from start -> now
+            const { Op } = require('sequelize');
+            const records = await Stock.findAll({ where: { createdAt: { [Op.gte]: start, [Op.lte]: now }, status: 'active' }, order: [['createdAt', 'ASC']] });
+
+            return { success: true, data: { snapshotInfo, snapshotRows, start: start.toISOString(), end: now.toISOString(), records } };
+        } catch (error) {
+            return { success: false, message: error.message };
+        }
+    }
 };
 
 export default StockRepo;

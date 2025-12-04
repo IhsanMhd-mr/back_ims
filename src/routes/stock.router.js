@@ -22,6 +22,8 @@ router.post('/sell', StockController.sell);
 router.get('/summary', StockController.summary);
 router.post('/milestone', StockController.createMilestone);
 router.get('/milestone/:year/:month', StockController.getMilestone);
+// last three months view: snapshot before window + ledger records for window
+router.get('/last_three_months', StockController.lastThreeMonths);
 
 // --- Admin / maintenance -----------------------------------------------
 router.put('/put/:id', StockController.update); // update updated by
