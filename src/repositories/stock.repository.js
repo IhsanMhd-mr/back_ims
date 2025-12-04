@@ -1,4 +1,5 @@
 import { Stock } from '../models/stock.model.js';
+import { StockAdjustment } from '../models/stock-adjustment.model.js';
 import { Op } from 'sequelize';
 
 const StockRepo = {
@@ -15,6 +16,24 @@ const StockRepo = {
         try {
             const offset = (page - 1) * limit;
             const where = { ...filters };
+            // Support date range filters passed as start_date / end_date (ISO strings)
+            if (filters.start_date || filters.end_date) {
+                const createdAtCond = {};
+                if (filters.start_date) {
+                    const sd = new Date(filters.start_date);
+                    if (!Number.isNaN(sd.getTime())) createdAtCond[Op.gte] = sd;
+                }
+                if (filters.end_date) {
+                    const ed = new Date(filters.end_date);
+                    if (!Number.isNaN(ed.getTime())) createdAtCond[Op.lte] = ed;
+                }
+                if (Object.keys(createdAtCond).length > 0) {
+                    where.createdAt = createdAtCond;
+                }
+                // remove custom keys so Sequelize doesn't try to match them directly
+                delete where.start_date;
+                delete where.end_date;
+            }
             // Ignore soft-deleted records by default (paranoid true). If caller passes status filter, keep it.
             const { rows: data, count: total } = await Stock.findAndCountAll({
                 where,
@@ -141,6 +160,199 @@ const StockRepo = {
                     pages: Math.ceil(total / limit)
                 }
             };
+        } catch (error) {
+            return { success: false, message: error.message };
+        }
+    }
+
+    ,
+
+    // Aggregate current stock by product_id (sum of qty) and return product info when available
+    getStockSummary: async () => {
+        try {
+            // Use raw query to aggregate quickly
+            const sql = `SELECT s.product_id, SUM(s.qty) as total_qty
+                FROM stocks s
+                WHERE s.status = 'active'
+                GROUP BY s.product_id`;
+            const [results] = await Stock.sequelize.query(sql, { type: Stock.sequelize.QueryTypes.SELECT });
+            return { success: true, data: results };
+        } catch (error) {
+            return { success: false, message: error.message };
+        }
+    },
+
+    // Create a stock adjustment record (positive or negative qty) with a note
+    adjustStock: async ({ product_id, variant_id, qty, note = '', approver_id = null, createdBy = null }) => {
+        try {
+            // Resolve product_id if variant_id provided
+            let pid = product_id;
+            if ((!pid || pid === 0) && variant_id) {
+                const prod = await Stock.sequelize.models.Product.findOne({ where: { variant_id } });
+                if (!prod) return { success: false, message: 'Product (variant_id) not found' };
+                pid = prod.id;
+            }
+            if (!pid) return { success: false, message: 'product_id or variant_id is required' };
+            const rec = await Stock.create({ product_id: pid, qty, description: note, approver_id, createdBy });
+            // create adjustment audit row
+            try {
+                await StockAdjustment.create({ stock_id: rec.id, product_id: pid, variant_id: variant_id || null, qty, note, adjusted_by: approver_id, createdBy });
+            } catch (errAdj) {
+                // non-fatal: log and continue
+                console.error('[StockRepo] adjustStock - StockAdjustment create failed:', errAdj.message);
+            }
+            return { success: true, data: rec, message: 'Stock adjusted' };
+        } catch (error) {
+            return { success: false, message: error.message };
+        }
+    },
+
+    // Convert materials into produced products: decrement materials, increment products
+    convertMaterialsToProducts: async ({ materials = [], product_variant, produced_qty = 0, createdBy = null }) => {
+        const t = await Stock.sequelize.transaction();
+        try {
+            if (!Array.isArray(materials) || materials.length === 0) return { success: false, message: 'materials required' };
+            if (!product_variant) return { success: false, message: 'product_variant is required' };
+
+            // Resolve produced product id
+            const produced = await Stock.sequelize.models.Product.findOne({ where: { variant_id: product_variant }, transaction: t });
+            if (!produced) { await t.rollback(); return { success: false, message: 'Produced product not found' }; }
+
+            // For each material, resolve product and insert negative stock entry
+            for (const m of materials) {
+                const variant = m.variant_id || m.product_id;
+                const qty = Number(m.qty || m.quantity || 0);
+                if (!variant || qty <= 0) { await t.rollback(); return { success: false, message: 'Invalid material entry' }; }
+                const mat = await Stock.sequelize.models.Product.findOne({ where: { variant_id: variant }, transaction: t });
+                if (!mat) { await t.rollback(); return { success: false, message: `Material not found: ${variant}` }; }
+                await Stock.create({ product_id: mat.id, qty: -Math.abs(qty), description: `Converted to ${product_variant}`, createdBy }, { transaction: t });
+            }
+
+            // Add produced product qty
+            if (produced_qty > 0) {
+                await Stock.create({ product_id: produced.id, qty: Number(produced_qty), description: `Produced from materials`, createdBy }, { transaction: t });
+            }
+
+            await t.commit();
+            return { success: true, message: 'Conversion completed' };
+        } catch (error) {
+            await t.rollback();
+            return { success: false, message: error.message };
+        }
+    },
+
+    // Reduce stock when selling products (creates negative stock entries)
+    sellProducts: async ({ items = [], createdBy = null }) => {
+        const t = await Stock.sequelize.transaction();
+        try {
+            if (!Array.isArray(items) || items.length === 0) return { success: false, message: 'items required' };
+            for (const it of items) {
+                const variant = it.variant_id || it.product_id;
+                const qty = Number(it.qty || it.quantity || 0);
+                if (!variant || qty <= 0) { await t.rollback(); return { success: false, message: 'Invalid item entry' }; }
+                const prod = await Stock.sequelize.models.Product.findOne({ where: { variant_id: variant }, transaction: t });
+                if (!prod) { await t.rollback(); return { success: false, message: `Product not found: ${variant}` }; }
+                await Stock.create({ product_id: prod.id, qty: -Math.abs(qty), description: `Sold via POS`, createdBy }, { transaction: t });
+            }
+            await t.commit();
+            return { success: true, message: 'Stock updated for sale' };
+        } catch (error) {
+            await t.rollback();
+            return { success: false, message: error.message };
+        }
+    }
+
+    ,
+
+    // Create or replace a monthly snapshot for a given year/month
+    createMonthlySummary: async ({ year, month, createdBy = null } = {}) => {
+        try {
+            if (!year || !month) return { success: false, message: 'year and month required' };
+            // compute last day of month
+            const y = Number(year);
+            const m = Number(month);
+            const nextMonth = new Date(y, m, 1);
+            const lastDay = new Date(nextMonth.getTime() - 1);
+            const lastDayIso = lastDay.toISOString();
+
+            // aggregate stock up to end of month (inclusive)
+            const sql = `SELECT s.product_id, SUM(s.qty) as total_qty
+                FROM stocks s
+                WHERE s.status = 'active' AND s.created_at <= :lastDay
+                GROUP BY s.product_id`;
+            const [rows] = await Stock.sequelize.query(sql, { replacements: { lastDay: lastDayIso }, type: Stock.sequelize.QueryTypes.SELECT });
+
+            // remove existing entries for year/month
+            await Stock.sequelize.models.StockMonthlySummary.destroy({ where: { year: y, month: m } });
+
+            // bulk insert snapshot rows
+            const toInsert = rows.map(r => ({ year: y, month: m, product_id: r.product_id, total_qty: Number(r.total_qty || 0), createdBy }));
+            if (toInsert.length > 0) {
+                await Stock.sequelize.models.StockMonthlySummary.bulkCreate(toInsert);
+            }
+            return { success: true, message: 'Monthly summary created', data: toInsert };
+        } catch (error) {
+            return { success: false, message: error.message };
+        }
+    },
+
+    // Fetch monthly snapshot rows for a given year/month
+    getMonthlySummary: async ({ year, month } = {}) => {
+        try {
+            if (!year || !month) return { success: false, message: 'year and month required' };
+            const rows = await Stock.sequelize.models.StockMonthlySummary.findAll({ where: { year: Number(year), month: Number(month) } });
+            return { success: true, data: rows };
+        } catch (error) {
+            return { success: false, message: error.message };
+        }
+    },
+
+    // Return the latest snapshot year/month or null
+    getLatestSnapshotInfo: async () => {
+        try {
+            const row = await Stock.sequelize.models.StockMonthlySummary.findOne({ order: [['year', 'DESC'], ['month', 'DESC']] });
+            if (!row) return { success: true, data: null };
+            return { success: true, data: { year: row.year, month: row.month } };
+        } catch (error) {
+            return { success: false, message: error.message };
+        }
+    },
+
+    // Get stock summary using latest snapshot + deltas (if available)
+    getStockSummaryWithSnapshot: async () => {
+        try {
+            // find latest snapshot
+            const latest = await Stock.sequelize.models.StockMonthlySummary.findOne({ order: [['year', 'DESC'], ['month', 'DESC']] });
+            if (!latest) {
+                // fallback to full aggregation
+                const sql = `SELECT s.product_id, SUM(s.qty) as total_qty FROM stocks s WHERE s.status = 'active' GROUP BY s.product_id`;
+                const [rows] = await Stock.sequelize.query(sql, { type: Stock.sequelize.QueryTypes.SELECT });
+                return { success: true, data: rows };
+            }
+
+            // snapshot exists - compute snapshot date (end of month)
+            const y = latest.year;
+            const m = latest.month; // 1-12 assumed
+            const nextMonth = new Date(y, m, 1);
+            const snapshotEnd = new Date(nextMonth.getTime() - 1).toISOString();
+
+            // aggregate deltas after snapshotEnd
+            const deltaSql = `SELECT s.product_id, SUM(s.qty) as delta_qty FROM stocks s WHERE s.status = 'active' AND s.created_at > :snapshotEnd GROUP BY s.product_id`;
+            const [deltas] = await Stock.sequelize.query(deltaSql, { replacements: { snapshotEnd }, type: Stock.sequelize.QueryTypes.SELECT });
+
+            // load snapshot rows
+            const snapshotRows = await Stock.sequelize.models.StockMonthlySummary.findAll({ where: { year: y, month: m } });
+            const snapshotMap = new Map(snapshotRows.map(r => [r.product_id, Number(r.total_qty || 0)]));
+            const deltaMap = new Map(deltas.map(d => [d.product_id, Number(d.delta_qty || 0)]));
+
+            // combine
+            const combined = new Map();
+            for (const [pid, qty] of snapshotMap.entries()) combined.set(pid, qty);
+            for (const [pid, dq] of deltaMap.entries()) combined.set(pid, (combined.get(pid) || 0) + dq);
+
+            // also include any products present in deltas but not snapshot
+            const result = Array.from(combined.entries()).map(([product_id, total_qty]) => ({ product_id, total_qty }));
+            return { success: true, data: result };
         } catch (error) {
             return { success: false, message: error.message };
         }
