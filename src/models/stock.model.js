@@ -7,11 +7,18 @@ export const Stock = sequelize.define('Stock', {
         primaryKey: true,
         autoIncrement: true
     },
-    product_id: {
+    item_type: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        validate: {
+            isIn: [['material', 'product']]
+        }
+    },
+    fk_id: {
         type: DataTypes.INTEGER,
         allowNull: false
     },
-    product_sku: {
+    sku: {
         type: DataTypes.STRING,
         allowNull: false
     },
@@ -57,7 +64,10 @@ export const Stock = sequelize.define('Stock', {
     status: {
         type: DataTypes.STRING,
         allowNull: false,
-        defaultValue: 'active' // active, inactive, deleted, pending, etc.
+        defaultValue: 'available',
+        validate: {
+            isIn: [['available', 'reserved', 'allocated', 'sold', 'damaged', 'returned', 'expired', 'on_hold']]
+        }
     },
     createdBy: {
         type: DataTypes.INTEGER,

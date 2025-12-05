@@ -38,27 +38,42 @@ const StockController = {
                     if (it.purchase_cost != null && it.cost == null) it.cost = it.purchase_cost;
                     if (it.batch_no != null && it.batch_number == null) it.batch_number = it.batch_no;
 
-                    // If product_id was given but is a string variant id (common from UI), detect and resolve
-                    if (it.product_id && typeof it.product_id === 'string' && isNaN(Number(it.product_id))) {
-                        // treat as variant id
-                        const prod = await Stock.sequelize.models.Product.findOne({ where: { variant_id: it.product_id }, transaction: t });
-                        if (prod) it.product_id = prod.id;
-                    }
-
-                    // Resolve product_id from explicit variant_id or product_sku when missing
-                    if ((!it.product_id || it.product_id === 0) && it.variant_id) {
-                        const prod = await Stock.sequelize.models.Product.findOne({ where: { variant_id: it.variant_id }, transaction: t });
-                        if (prod) it.product_id = prod.id;
-                    }
-                    if ((!it.product_id || it.product_id === 0) && it.product_sku) {
-                        // try common sku/code fields
-                        const prod2 = await Stock.sequelize.models.Product.findOne({ where: { sku: it.product_sku }, transaction: t });
-                        if (prod2) it.product_id = prod2.id;
-                    }
-
-                    if (!it.product_id || isNaN(Number(it.product_id))) {
+                    // Determine item_type (default to 'product' if not specified)
+                    if (!it.item_type) it.item_type = 'product';
+                    if (!['material', 'product'].includes(it.item_type)) {
                         await t.rollback();
-                        return res.status(400).json({ success: false, message: 'product_id or resolvable variant_id/product_sku required for every item' });
+                        return res.status(400).json({ success: false, message: 'item_type must be "material" or "product"' });
+                    }
+
+                    // Resolve fk_id from product_id or variant_id or sku
+                    let fk_id = it.fk_id;
+                    if (!fk_id && it.product_id) fk_id = it.product_id;
+
+                    // If fk_id is a string variant id, resolve it
+                    if (fk_id && typeof fk_id === 'string' && isNaN(Number(fk_id))) {
+                        const Model = it.item_type === 'material' ? Stock.sequelize.models.Material : Stock.sequelize.models.Product;
+                        const record = await Model.findOne({ where: { variant_id: fk_id }, transaction: t });
+                        if (record) fk_id = record.id;
+                    }
+
+                    // Resolve from variant_id if missing
+                    if (!fk_id && it.variant_id) {
+                        const Model = it.item_type === 'material' ? Stock.sequelize.models.Material : Stock.sequelize.models.Product;
+                        const record = await Model.findOne({ where: { variant_id: it.variant_id }, transaction: t });
+                        if (record) fk_id = record.id;
+                    }
+
+                    // Resolve from sku/product_sku if missing
+                    if (!fk_id && (it.sku || it.product_sku)) {
+                        const skuValue = it.sku || it.product_sku;
+                        const Model = it.item_type === 'material' ? Stock.sequelize.models.Material : Stock.sequelize.models.Product;
+                        const record = await Model.findOne({ where: { sku: skuValue }, transaction: t });
+                        if (record) fk_id = record.id;
+                    }
+
+                    if (!fk_id || isNaN(Number(fk_id))) {
+                        await t.rollback();
+                        return res.status(400).json({ success: false, message: 'fk_id or resolvable variant_id/sku required for every item' });
                     }
 
                     // qty required numeric
@@ -70,6 +85,13 @@ const StockController = {
 
                     // cost normalization
                     it.cost = it.cost != null && !isNaN(Number(it.cost)) ? Number(it.cost) : 0;
+
+                    // sku required
+                    const skuValue = it.sku || it.product_sku || it.product_code;
+                    if (!skuValue) {
+                        await t.rollback();
+                        return res.status(400).json({ success: false, message: 'sku (or product_sku/product_code) required for every item' });
+                    }
 
                     // description: prefer product_name or construct from payload
                     if (!it.description) {
@@ -94,12 +116,14 @@ const StockController = {
                     if (!it.tags && it.warehouse) it.tags = String(it.warehouse);
 
                     // map allowed model fields and rename fields to match model
-                    const allowed = ['product_id','product_sku','variant_id','batch_number','description','cost','date','qty','unit','tags','approver_id','status','createdBy','updatedBy','deletedBy'];
+                    const allowed = ['item_type','fk_id','sku','variant_id','batch_number','description','cost','date','qty','unit','tags','approver_id','status','createdBy','updatedBy','deletedBy'];
                     const entry = {};
                     for (const k of allowed) if (Object.prototype.hasOwnProperty.call(it, k)) entry[k] = it[k];
 
-                    // ensure product_sku exists when possible
-                    if (!entry.product_sku && it.product_code) entry.product_sku = it.product_code;
+                    // ensure sku exists
+                    if (!entry.sku) entry.sku = skuValue;
+                    entry.fk_id = fk_id;
+                    entry.item_type = it.item_type;
 
                     prepared.push(entry);
                 }
@@ -122,8 +146,9 @@ const StockController = {
             const limit = Number(req.query.limit) || 20;
             const filters = {};
             if (req.query.status) filters.status = req.query.status;
-            if (req.query.product_id) filters.product_id = Number(req.query.product_id);
-            if (req.query.product_sku) filters.product_sku = req.query.product_sku;
+            if (req.query.item_type) filters.item_type = req.query.item_type;
+            if (req.query.fk_id) filters.fk_id = Number(req.query.fk_id);
+            if (req.query.sku) filters.sku = req.query.sku;
             if (req.query.variant_id) filters.variant_id = req.query.variant_id;
             if (req.query.date) filters.date = req.query.date; // DATEONLY format: 2025-12-05
 
@@ -168,8 +193,9 @@ const StockController = {
             const limit = Number(req.query.limit) || 20;
             const filters = {};
             if (req.query.status) filters.status = req.query.status;
-            if (req.query.product_id) filters.product_id = Number(req.query.product_id);
-            if (req.query.product_sku) filters.product_sku = req.query.product_sku;
+            if (req.query.item_type) filters.item_type = req.query.item_type;
+            if (req.query.fk_id) filters.fk_id = Number(req.query.fk_id);
+            if (req.query.sku) filters.sku = req.query.sku;
             if (req.query.variant_id) filters.variant_id = req.query.variant_id;
             if (req.query.date) filters.date = req.query.date; // DATEONLY format: 2025-12-05
 
@@ -477,13 +503,13 @@ const StockController = {
         try {
             const distinctSkus = await Stock.findAll({
                 attributes: [
-                    ['product_sku', 'sku']
+                    ['sku', 'sku']
                 ],
-                group: ['product_sku'],
+                group: ['sku'],
                 raw: true,
-                order: [['product_sku', 'ASC']]
+                order: [['sku', 'ASC']]
             });
-            const list = (Array.isArray(distinctSkus) ? distinctSkus : []).map(item => item.sku || item.product_sku).filter(s => s && s.trim());
+            const list = (Array.isArray(distinctSkus) ? distinctSkus : []).map(item => item.sku).filter(s => s && s.trim());
             return res.status(200).json({ success: true, data: list });
         } catch (err) {
             return res.status(500).json({ success: false, message: err.message });
