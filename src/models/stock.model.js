@@ -64,9 +64,9 @@ export const Stock = sequelize.define('Stock', {
     status: {
         type: DataTypes.STRING,
         allowNull: false,
-        defaultValue: 'available',
+        defaultValue: 'active',
         validate: {
-            isIn: [['available', 'reserved', 'allocated', 'sold', 'damaged', 'returned', 'expired', 'on_hold']]
+            isIn: [['active', 'inactive', 'deleted', 'pending']]
         }
     },
     createdBy: {

@@ -55,7 +55,10 @@ export const Product = sequelize.define(
         status: {
             type: DataTypes.STRING,
             allowNull: false,
-            defaultValue: 'active' // active, inactive, deleted, pending, etc.
+            defaultValue: 'active',
+            validate: {
+                isIn: [['active', 'inactive', 'deleted', 'pending']]
+            }
         },
         createdBy: {
             type: DataTypes.INTEGER,

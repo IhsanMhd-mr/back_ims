@@ -131,7 +131,7 @@ const migrate = async () => {
         await sequelize.query(`
           ALTER TABLE stock_records 
           ADD CONSTRAINT check_status 
-          CHECK (status IN ('available', 'reserved', 'allocated', 'sold', 'damaged', 'returned', 'expired', 'on_hold'))
+          CHECK (status IN ('active', 'inactive', 'deleted', 'pending'))
         `);
         console.log('  ✓ Added status CHECK constraint with valid values');
       } catch (err) {
@@ -139,8 +139,8 @@ const migrate = async () => {
       }
 
       try {
-        await sequelize.query(`ALTER TABLE stock_records ALTER COLUMN status SET DEFAULT 'available'`);
-        console.log('  ✓ Updated status default to \'available\'');
+        await sequelize.query(`ALTER TABLE stock_records ALTER COLUMN status SET DEFAULT 'active'`);
+        console.log('  ✓ Updated status default to \'active\'');
       } catch (err) {
         console.warn('  ⚠ Could not update default:', err.message);
       }
@@ -148,10 +148,10 @@ const migrate = async () => {
       try {
         await sequelize.query(`
           UPDATE stock_records 
-          SET status = 'available' 
-          WHERE status = 'active'
+          SET status = 'active' 
+          WHERE status NOT IN ('active', 'inactive', 'deleted', 'pending')
         `);
-        console.log('  ✓ Migrated old \'active\' status to \'available\'');
+        console.log('  ✓ Migrated old status values to valid enum');
       } catch (err) {
         console.warn('  ⚠ Could not migrate status values:', err.message);
       }
