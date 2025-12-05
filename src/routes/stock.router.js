@@ -4,7 +4,10 @@ import StockController from '../controllers/stock.controller.js';
 const router = express.Router();
 // --- Ledger (stock transactions) -----------------------------------------
 router.post('/add', StockController.create);
+router.post('/bulk', StockController.bulkCreate);
 router.get('/getAll', StockController.getAll);
+router.get('/statuses', StockController.statuses);
+router.get('/skus', StockController.skus);
 // period-aware listing: supports named `period` (today, this_month, last_three_months) and `asOf`
 router.get('/period', StockController.getByPeriod);
 router.get('/get/:id', StockController.getById);

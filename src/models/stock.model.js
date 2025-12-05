@@ -11,11 +11,24 @@ export const Stock = sequelize.define('Stock', {
         type: DataTypes.INTEGER,
         allowNull: false
     },
+    product_sku: {
+        type: DataTypes.STRING,
+        allowNull: false
+    },
+    variant_id: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
+    batch_number: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        unique: false // Allow duplicates; batch_number is for grouping, not unique constraint
+    },
     description: {
         type: DataTypes.TEXT,
         allowNull: true
     },
-    price: {
+    cost: {
         type: DataTypes.DECIMAL(12, 2),
         allowNull: false,
         defaultValue: 0
@@ -59,7 +72,7 @@ export const Stock = sequelize.define('Stock', {
         allowNull: true
     }
 }, {
-    tableName: 'stocks',
+    tableName: 'stock_records',
     timestamps: true,
     paranoid: true // enables soft-deletes via deletedAt
 });

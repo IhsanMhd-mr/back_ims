@@ -1,4 +1,6 @@
 import StockRepo from '../repositories/stock.repository.js';
+import { Stock } from '../models/stock.model.js';
+import { Op } from 'sequelize';
 
 const StockController = {
     create: async (req, res) => {
@@ -12,6 +14,108 @@ const StockController = {
         }
     },
 
+    // Bulk create multiple stock entries with validation and variant->product resolution
+    // Accepts either: an array body, { items: [...] }, or a GRN-like payload { type, supplier, grn_date, lines: [...] }
+    bulkCreate: async (req, res) => {
+        try {
+            const payload = req.body || {};
+            // normalize to items array
+            let items = [];
+            if (Array.isArray(payload)) items = payload;
+            else if (Array.isArray(payload.items)) items = payload.items;
+            else if (Array.isArray(payload.lines)) items = payload.lines;
+            else items = [];
+
+            if (!Array.isArray(items) || items.length === 0) return res.status(400).json({ success: false, message: 'items (or lines) array is required and must not be empty' });
+
+            const t = await Stock.sequelize.transaction();
+            try {
+                const prepared = [];
+                for (const raw of items) {
+                    const it = { ...raw };
+
+                    // Support GRN's property names: purchase_cost -> cost, batch_no -> batch_number
+                    if (it.purchase_cost != null && it.cost == null) it.cost = it.purchase_cost;
+                    if (it.batch_no != null && it.batch_number == null) it.batch_number = it.batch_no;
+
+                    // If product_id was given but is a string variant id (common from UI), detect and resolve
+                    if (it.product_id && typeof it.product_id === 'string' && isNaN(Number(it.product_id))) {
+                        // treat as variant id
+                        const prod = await Stock.sequelize.models.Product.findOne({ where: { variant_id: it.product_id }, transaction: t });
+                        if (prod) it.product_id = prod.id;
+                    }
+
+                    // Resolve product_id from explicit variant_id or product_sku when missing
+                    if ((!it.product_id || it.product_id === 0) && it.variant_id) {
+                        const prod = await Stock.sequelize.models.Product.findOne({ where: { variant_id: it.variant_id }, transaction: t });
+                        if (prod) it.product_id = prod.id;
+                    }
+                    if ((!it.product_id || it.product_id === 0) && it.product_sku) {
+                        // try common sku/code fields
+                        const prod2 = await Stock.sequelize.models.Product.findOne({ where: { sku: it.product_sku }, transaction: t });
+                        if (prod2) it.product_id = prod2.id;
+                    }
+
+                    if (!it.product_id || isNaN(Number(it.product_id))) {
+                        await t.rollback();
+                        return res.status(400).json({ success: false, message: 'product_id or resolvable variant_id/product_sku required for every item' });
+                    }
+
+                    // qty required numeric
+                    if (it.qty == null || isNaN(Number(it.qty))) {
+                        await t.rollback();
+                        return res.status(400).json({ success: false, message: 'qty is required and must be numeric for every item' });
+                    }
+                    it.qty = Number(it.qty);
+
+                    // cost normalization
+                    it.cost = it.cost != null && !isNaN(Number(it.cost)) ? Number(it.cost) : 0;
+
+                    // description: prefer product_name or construct from payload
+                    if (!it.description) {
+                        if (it.product_name) it.description = it.product_name;
+                        else if (payload.type || payload.supplier) it.description = `${payload.type || 'grn'} ${payload.supplier || ''}`.trim();
+                    }
+
+                    // date: prefer line.date then GRN-level grn_date, normalize to YYYY-MM-DD
+                    const dateRaw = it.date || payload.grn_date || payload.date;
+                    if (dateRaw) {
+                        const d = new Date(dateRaw);
+                        if (isNaN(d.getTime())) {
+                            await t.rollback();
+                            return res.status(400).json({ success: false, message: `Invalid date for item: ${dateRaw}` });
+                        }
+                        it.date = d.toISOString().split('T')[0];
+                    } else {
+                        it.date = new Date().toISOString().split('T')[0];
+                    }
+
+                    // map warehouse into tags if provided
+                    if (!it.tags && it.warehouse) it.tags = String(it.warehouse);
+
+                    // map allowed model fields and rename fields to match model
+                    const allowed = ['product_id','product_sku','variant_id','batch_number','description','cost','date','qty','unit','tags','approver_id','status','createdBy','updatedBy','deletedBy'];
+                    const entry = {};
+                    for (const k of allowed) if (Object.prototype.hasOwnProperty.call(it, k)) entry[k] = it[k];
+
+                    // ensure product_sku exists when possible
+                    if (!entry.product_sku && it.product_code) entry.product_sku = it.product_code;
+
+                    prepared.push(entry);
+                }
+
+                const created = await Stock.bulkCreate(prepared, { transaction: t, returning: true });
+                await t.commit();
+                return res.status(201).json({ success: true, data: created, message: `${created.length} stock records created` });
+            } catch (innerErr) {
+                await t.rollback();
+                return res.status(500).json({ success: false, message: innerErr.message });
+            }
+        } catch (err) {
+            return res.status(500).json({ success: false, message: err.message });
+        }
+    },
+
     getAll: async (req, res) => {
         try {
             const page = Number(req.query.page) || 1;
@@ -19,6 +123,9 @@ const StockController = {
             const filters = {};
             if (req.query.status) filters.status = req.query.status;
             if (req.query.product_id) filters.product_id = Number(req.query.product_id);
+            if (req.query.product_sku) filters.product_sku = req.query.product_sku;
+            if (req.query.variant_id) filters.variant_id = req.query.variant_id;
+            if (req.query.date) filters.date = req.query.date; // DATEONLY format: 2025-12-05
 
             // Time period support: accept start/end ISO dates or year+month
             const startRaw = req.query.start || req.query.start_date || null;
@@ -44,8 +151,10 @@ const StockController = {
                 }
             }
             // add more query filters as needed (date, approver_id, etc.)
-            const result = await StockRepo.getStocks({ page, limit, filters });
+            const result = await StockRepo.getStocks({ page, limit, filters, order: [['createdAt', 'DESC']] });
             if (result.success) return res.status(200).json(result);
+            // Log details for debugging when repository returns failure
+            console.error('[StockController.getAll] repo returned error:', result.message || result);
             return res.status(400).json(result);
         } catch (err) {
             return res.status(500).json({ success: false, message: err.message });
@@ -60,6 +169,9 @@ const StockController = {
             const filters = {};
             if (req.query.status) filters.status = req.query.status;
             if (req.query.product_id) filters.product_id = Number(req.query.product_id);
+            if (req.query.product_sku) filters.product_sku = req.query.product_sku;
+            if (req.query.variant_id) filters.variant_id = req.query.variant_id;
+            if (req.query.date) filters.date = req.query.date; // DATEONLY format: 2025-12-05
 
             // apply named periods and asOf via shared helper
             StockController._applyPeriodToFilters(req, filters);
@@ -104,7 +216,7 @@ const StockController = {
             }
             if (!summaryResult || !summaryResult.success) return res.status(400).json({ success: false, message: summaryResult?.message || 'Failed to get stock summary' });
 
-            const stocksResult = await StockRepo.getStocks({ page, limit, filters });
+            const stocksResult = await StockRepo.getStocks({ page, limit, filters, order: [['createdAt', 'DESC']] });
             if (!stocksResult || !stocksResult.success) return res.status(400).json({ success: false, message: stocksResult?.message || 'Failed to get stock records' });
 
             // Optionally filter summary to a specific product_id if requested
@@ -316,6 +428,21 @@ const StockController = {
         }
     },
 
+    // GET /stock/statuses - return distinct status values present in stock records
+    statuses: async (req, res) => {
+        try {
+            const statuses = await Stock.findAll({
+                attributes: [[Stock.sequelize.fn('DISTINCT', Stock.sequelize.col('status')), 'status']],
+                where: { status: { [Op.not]: null } },
+                raw: true
+            });
+            const list = Array.isArray(statuses) ? statuses.map(s => s.status).filter(Boolean) : [];
+            return res.status(200).json({ success: true, data: list });
+        } catch (err) {
+            return res.status(500).json({ success: false, message: err.message });
+        }
+    },
+
     update: async (req, res) => {
         try {
             const id = Number(req.params.id);
@@ -341,6 +468,23 @@ const StockController = {
             if (result.success) return res.status(200).json(result);
             if (result.message === 'Stock not found') return res.status(404).json(result);
             return res.status(400).json(result);
+        } catch (err) {
+            return res.status(500).json({ success: false, message: err.message });
+        }
+    },
+
+    skus: async (req, res) => {
+        try {
+            const distinctSkus = await Stock.findAll({
+                attributes: [
+                    ['product_sku', 'sku']
+                ],
+                group: ['product_sku'],
+                raw: true,
+                order: [['product_sku', 'ASC']]
+            });
+            const list = (Array.isArray(distinctSkus) ? distinctSkus : []).map(item => item.sku || item.product_sku).filter(s => s && s.trim());
+            return res.status(200).json({ success: true, data: list });
         } catch (err) {
             return res.status(500).json({ success: false, message: err.message });
         }

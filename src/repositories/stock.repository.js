@@ -16,19 +16,27 @@ const StockRepo = {
         try {
             const offset = (page - 1) * limit;
             const where = { ...filters };
-            // Support date range filters passed as start_date / end_date (ISO strings)
+            
+            // Support date field filters (DATEONLY: 2025-12-05)
+            if (filters.date) {
+                where.date = filters.date;
+                delete where.date; // remove from where, then add back to avoid duplication
+                where.date = filters.date;
+            }
+            
+            // Support date range filters passed as start_date / end_date (ISO strings or DATEONLY)
             if (filters.start_date || filters.end_date) {
-                const createdAtCond = {};
+                const dateCond = {};
                 if (filters.start_date) {
-                    const sd = new Date(filters.start_date);
-                    if (!Number.isNaN(sd.getTime())) createdAtCond[Op.gte] = sd;
+                    const sd = filters.start_date;
+                    dateCond[Op.gte] = sd; // DATEONLY format: 2025-12-05
                 }
                 if (filters.end_date) {
-                    const ed = new Date(filters.end_date);
-                    if (!Number.isNaN(ed.getTime())) createdAtCond[Op.lte] = ed;
+                    const ed = filters.end_date;
+                    dateCond[Op.lte] = ed; // DATEONLY format: 2025-12-05
                 }
-                if (Object.keys(createdAtCond).length > 0) {
-                    where.createdAt = createdAtCond;
+                if (Object.keys(dateCond).length > 0) {
+                    where.date = dateCond;
                 }
                 // remove custom keys so Sequelize doesn't try to match them directly
                 delete where.start_date;
@@ -77,7 +85,7 @@ const StockRepo = {
             }
 
             // Merge fields but preserve existing values when falsy values are not intended to override
-            const allowedFields = ['description', 'price', 'date', 'qty', 'unit', 'tags', 'approver_id', 'product_id', 'updatedBy'];
+            const allowedFields = ['description', 'cost', 'date', 'qty', 'unit', 'tags', 'approver_id', 'product_id', 'batch_number', 'updatedBy'];
             allowedFields.forEach(field => {
                 if (updateData[field] === undefined) {
                     updateData[field] = stock[field];
@@ -88,8 +96,8 @@ const StockRepo = {
             if (updateData.qty != null && isNaN(Number(updateData.qty))) {
                 return { success: false, message: 'Invalid qty value' };
             }
-            if (updateData.price != null && isNaN(Number(updateData.price))) {
-                return { success: false, message: 'Invalid price value' };
+            if (updateData.cost != null && isNaN(Number(updateData.cost))) {
+                return { success: false, message: 'Invalid cost value' };
             }
 
             await stock.update(updateData);
@@ -172,7 +180,7 @@ const StockRepo = {
         try {
             // Use raw query to aggregate quickly
             const sql = `SELECT s.product_id, SUM(s.qty) as total_qty
-                FROM stocks s
+                FROM stock_records s
                 WHERE s.status = 'active'
                 GROUP BY s.product_id`;
             const [results] = await Stock.sequelize.query(sql, { type: Stock.sequelize.QueryTypes.SELECT });
@@ -190,7 +198,7 @@ const StockRepo = {
             const end = (typeof end_date === 'string') ? new Date(end_date) : end_date;
             if (isNaN(start.getTime()) || isNaN(end.getTime())) return { success: false, message: 'Invalid date range' };
 
-            let sql = `SELECT s.product_id, SUM(s.qty) as total_qty FROM stocks s WHERE s.status = 'active' AND s.created_at >= :start AND s.created_at <= :end`;
+            let sql = `SELECT s.product_id, SUM(s.qty) as total_qty FROM stock_records s WHERE s.status = 'active' AND s.created_at >= :start AND s.created_at <= :end`;
             const replacements = { start: start.toISOString(), end: end.toISOString() };
             if (product_id) {
                 sql += ` AND s.product_id = :product_id`;
@@ -299,7 +307,7 @@ const StockRepo = {
 
             // aggregate stock up to end of month (inclusive)
             const sql = `SELECT s.product_id, SUM(s.qty) as total_qty
-                FROM stocks s
+                FROM stock_records s
                 WHERE s.status = 'active' AND s.created_at <= :lastDay
                 GROUP BY s.product_id`;
             const [rows] = await Stock.sequelize.query(sql, { replacements: { lastDay: lastDayIso }, type: Stock.sequelize.QueryTypes.SELECT });
@@ -322,7 +330,7 @@ const StockRepo = {
     getMonthlySummary: async ({ year, month } = {}) => {
         try {
             if (!year || !month) return { success: false, message: 'year and month required' };
-            const rows = await Stock.sequelize.models.StockMonthlySummary.findAll({ where: { year: Number(year), month: Number(month) } });
+            const rows = await Stock.sequelize.models.StockMonthlySummary.findAll({ where: { year: Number(year), month: Number(month) }, order: [['createdAt', 'DESC']] });
             return { success: true, data: rows };
         } catch (error) {
             return { success: false, message: error.message };
@@ -347,7 +355,7 @@ const StockRepo = {
             const latest = await Stock.sequelize.models.StockMonthlySummary.findOne({ order: [['year', 'DESC'], ['month', 'DESC']] });
             if (!latest) {
                 // fallback to full aggregation
-                const sql = `SELECT s.product_id, SUM(s.qty) as total_qty FROM stocks s WHERE s.status = 'active' GROUP BY s.product_id`;
+                const sql = `SELECT s.product_id, SUM(s.qty) as total_qty FROM stock_records s WHERE s.status = 'active' GROUP BY s.product_id`;
                 const [rows] = await Stock.sequelize.query(sql, { type: Stock.sequelize.QueryTypes.SELECT });
                 return { success: true, data: rows };
             }
@@ -359,11 +367,11 @@ const StockRepo = {
             const snapshotEnd = new Date(nextMonth.getTime() - 1).toISOString();
 
             // aggregate deltas after snapshotEnd
-            const deltaSql = `SELECT s.product_id, SUM(s.qty) as delta_qty FROM stocks s WHERE s.status = 'active' AND s.created_at > :snapshotEnd GROUP BY s.product_id`;
+            const deltaSql = `SELECT s.product_id, SUM(s.qty) as delta_qty FROM stock_records s WHERE s.status = 'active' AND s.created_at > :snapshotEnd GROUP BY s.product_id`;
             const [deltas] = await Stock.sequelize.query(deltaSql, { replacements: { snapshotEnd }, type: Stock.sequelize.QueryTypes.SELECT });
 
             // load snapshot rows
-            const snapshotRows = await Stock.sequelize.models.StockMonthlySummary.findAll({ where: { year: y, month: m } });
+            const snapshotRows = await Stock.sequelize.models.StockMonthlySummary.findAll({ where: { year: y, month: m }, order: [['createdAt', 'DESC']] });
             const snapshotMap = new Map(snapshotRows.map(r => [r.product_id, Number(r.total_qty || 0)]));
             const deltaMap = new Map(deltas.map(d => [d.product_id, Number(d.delta_qty || 0)]));
 
@@ -406,9 +414,22 @@ const StockRepo = {
 
             // ledger records from start -> now
             const { Op } = require('sequelize');
-            const records = await Stock.findAll({ where: { createdAt: { [Op.gte]: start, [Op.lte]: now }, status: 'active' }, order: [['createdAt', 'ASC']] });
+            const records = await Stock.findAll({ where: { createdAt: { [Op.gte]: start, [Op.lte]: now }, status: 'active' }, order: [['id', 'DESC']] });
 
             return { success: true, data: { snapshotInfo, snapshotRows, start: start.toISOString(), end: now.toISOString(), records } };
+        } catch (error) {
+            return { success: false, message: error.message };
+        }
+    },
+
+    // Bulk create multiple stock entries at once
+    bulkCreateStocks: async (stockDataArray = []) => {
+        try {
+            if (!Array.isArray(stockDataArray) || stockDataArray.length === 0) {
+                return { success: false, message: 'stockDataArray must be a non-empty array' };
+            }
+            const created = await Stock.bulkCreate(stockDataArray, { returning: true });
+            return { success: true, data: created, message: `${created.length} stock records created successfully` };
         } catch (error) {
             return { success: false, message: error.message };
         }

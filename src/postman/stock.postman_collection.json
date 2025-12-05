@@ -1,0 +1,401 @@
+{
+  "info": {
+    "_postman_id": "stock-api-collection",
+    "name": "Stock API Collection",
+    "description": "Complete API collection for stock management endpoints",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Ledger (Stock Transactions)",
+      "item": [
+        {
+          "name": "Create Single Stock Entry",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_id\": 1,\n  \"product_sku\": \"P-001\",\n  \"variant_id\": \"P-001\",\n  \"batch_number\": \"BATCH-2025-12-05\",\n  \"qty\": 10,\n  \"cost\": 100,\n  \"description\": \"Initial stock\",\n  \"status\": \"available\",\n  \"unit\": \"pcs\",\n  \"date\": \"2025-12-05\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/stock/add",
+              "host": ["{{base_url}}"],
+              "path": ["stock", "add"]
+            }
+          }
+        },
+        {
+          "name": "Bulk Create Stock Entries",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"product_id\": 1,\n      \"product_sku\": \"P-001\",\n      \"variant_id\": \"P-001\",\n      \"batch_number\": \"BATCH-001\",\n      \"qty\": 10,\n      \"cost\": 100,\n      \"description\": \"Bulk import 1\",\n      \"status\": \"available\"\n    },\n    {\n      \"product_id\": 2,\n      \"product_sku\": \"P-002\",\n      \"variant_id\": \"P-002\",\n      \"batch_number\": \"BATCH-001\",\n      \"qty\": 20,\n      \"cost\": 200,\n      \"description\": \"Bulk import 2\",\n      \"status\": \"available\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/stock/bulk",
+              "host": ["{{base_url}}"],
+              "path": ["stock", "bulk"]
+            }
+          }
+        },
+        {
+          "name": "Get All Stock (Paginated)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/stock/getAll?page=1&limit=20&status=available",
+              "host": ["{{base_url}}"],
+              "path": ["stock", "getAll"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "status",
+                  "value": "available"
+                },
+                {
+                  "key": "product_id",
+                  "value": "1",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Stock by Period",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/stock/period?period=this_month&page=1&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["stock", "period"],
+              "query": [
+                {
+                  "key": "period",
+                  "value": "this_month",
+                  "description": "today, yesterday, this_month, last_three_months, this_year"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "asOf",
+                  "value": "2025-12-05",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Stock by ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/stock/get/1",
+              "host": ["{{base_url}}"],
+              "path": ["stock", "get", "1"]
+            }
+          }
+        },
+        {
+          "name": "Search Stock",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/stock/search?q=material&page=1&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["stock", "search"],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "material"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Adjustments",
+      "item": [
+        {
+          "name": "Adjust Stock (Manual Adjustment)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_id\": 1,\n  \"variant_id\": \"P-001\",\n  \"qty\": 5,\n  \"note\": \"Inventory adjustment - damage found\",\n  \"approver_id\": 1,\n  \"createdBy\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/stock/adjust",
+              "host": ["{{base_url}}"],
+              "path": ["stock", "adjust"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Production / Conversion",
+      "item": [
+        {
+          "name": "Convert Materials to Products",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"materials\": [\n    {\n      \"variant_id\": \"P-001\",\n      \"qty\": 10\n    },\n    {\n      \"variant_id\": \"P-002\",\n      \"qty\": 5\n    }\n  ],\n  \"product_variant\": \"PRODUCT-FINAL\",\n  \"produced_qty\": 2,\n  \"createdBy\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/stock/convert",
+              "host": ["{{base_url}}"],
+              "path": ["stock", "convert"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sales",
+      "item": [
+        {
+          "name": "Record Stock Reduction (Sale)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"variant_id\": \"P-001\",\n      \"qty\": 3\n    },\n    {\n      \"variant_id\": \"P-002\",\n      \"qty\": 2\n    }\n  ],\n  \"createdBy\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/stock/sell",
+              "host": ["{{base_url}}"],
+              "path": ["stock", "sell"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Snapshots / Milestones",
+      "item": [
+        {
+          "name": "Get Stock Summary",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/stock/summary?period=this_month",
+              "host": ["{{base_url}}"],
+              "path": ["stock", "summary"],
+              "query": [
+                {
+                  "key": "period",
+                  "value": "this_month",
+                  "description": "Optional: today, yesterday, this_month, last_three_months, this_year"
+                },
+                {
+                  "key": "year",
+                  "value": "2025",
+                  "disabled": true
+                },
+                {
+                  "key": "month",
+                  "value": "12",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Monthly Snapshot (Milestone)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"year\": 2025,\n  \"month\": 12,\n  \"createdBy\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/stock/milestone",
+              "host": ["{{base_url}}"],
+              "path": ["stock", "milestone"]
+            }
+          }
+        },
+        {
+          "name": "Get Monthly Snapshot",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/stock/milestone/2025/12",
+              "host": ["{{base_url}}"],
+              "path": ["stock", "milestone", "2025", "12"]
+            }
+          }
+        },
+        {
+          "name": "Get Last Three Months View",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/stock/last_three_months?asOf=2025-12-05",
+              "host": ["{{base_url}}"],
+              "path": ["stock", "last_three_months"],
+              "query": [
+                {
+                  "key": "asOf",
+                  "value": "2025-12-05",
+                  "description": "Optional: date to calculate from (defaults to today)"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin / Maintenance",
+      "item": [
+        {
+          "name": "Update Stock",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"qty\": 25,\n  \"cost\": 120,\n  \"description\": \"Updated stock info\",\n  \"updatedBy\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/stock/put/1",
+              "host": ["{{base_url}}"],
+              "path": ["stock", "put", "1"]
+            }
+          }
+        },
+        {
+          "name": "Update Stock Status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{base_url}}/stock/status/1/inactive",
+              "host": ["{{base_url}}"],
+              "path": ["stock", "status", "1", "inactive"]
+            }
+          }
+        },
+        {
+          "name": "Soft Delete Stock (Mark as Deleted)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deletedBy\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/stock/remove/1",
+              "host": ["{{base_url}}"],
+              "path": ["stock", "remove", "1"]
+            }
+          }
+        },
+        {
+          "name": "Hard Delete Stock (Admin Only)",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/stock/admin_delete/1",
+              "host": ["{{base_url}}"],
+              "path": ["stock", "admin_delete", "1"]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000",
+      "type": "string"
+    }
+  ]
+}
