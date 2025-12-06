@@ -1,6 +1,7 @@
 import StockRepo from '../repositories/stock.repository.js';
 import { Stock } from '../models/stock.model.js';
 import { Op } from 'sequelize';
+import { ItemSale } from '../models/item-sale.model.js';
 
 const StockController = {
     create: async (req, res) => {
@@ -19,126 +20,106 @@ const StockController = {
     bulkCreate: async (req, res) => {
         try {
             const payload = req.body || {};
-            // normalize to items array
-            console.log('Bulk Create Stock Payload: ------------------<<<<<', payload);
+            payload.type = (payload.type || 'GRN').toUpperCase();
+            // Normalize item list from payload
             let items = [];
             if (Array.isArray(payload)) items = payload;
             else if (Array.isArray(payload.items)) items = payload.items;
             else if (Array.isArray(payload.lines)) items = payload.lines;
-            else items = [];
 
-            if (!Array.isArray(items) || items.length === 0) return res.status(400).json({ success: false, message: 'items (or lines) array is required and must not be empty' });
+            if (!items.length)
+                return res.status(400).json({ success: false, message: 'items/lines array required' });
 
             const t = await Stock.sequelize.transaction();
             try {
                 const prepared = [];
+
                 for (const raw of items) {
                     const it = { ...raw };
 
-                    // Support GRN's property names: purchase_cost -> cost, batch_no -> batch_number
+                    // Normalize alt names (GRN imports)
                     if (it.purchase_cost != null && it.cost == null) it.cost = it.purchase_cost;
                     if (it.batch_no != null && it.batch_number == null) it.batch_number = it.batch_no;
 
-                    // Determine item_type (default to 'PRODUCT' if not specified)
-                    if (!it.item_type) it.item_type = 'PRODUCT';
-                    if (!['MATERIAL', 'PRODUCT'].includes(it.item_type)) {
-                        await t.rollback();
-                        return res.status(400).json({ success: false, message: 'item_type must be "MATERIAL" or "PRODUCT"' });
-                    }
+                    // Item type
+                    it.item_type = (it.item_type || 'PRODUCT').toUpperCase();
+                    if (!['PRODUCT', 'MATERIAL'].includes(it.item_type))
+                        throw new Error(`Invalid item_type: ${it.item_type}`);
+                    // Select Model
+                    const Model = it.item_type === 'MATERIAL'
+                        ? Stock.sequelize.models.Material
+                        : Stock.sequelize.models.Product;
 
-                    // // Convert item_type to uppercase
-                    // it.item_type = it.item_type.toString().toUpperCase();
+                    let fk_id = it.fk_id || it.product_id || null;
+                    let record = null;
+                    let item_name = null;
 
-                    // Resolve fk_id from product_id or variant_id or sku
-                    let fk_id = it.fk_id;
-                    if (!fk_id && it.product_id) fk_id = it.product_id;
-
-                    // If fk_id is a string variant id, resolve it
-                    if (fk_id && typeof fk_id === 'string' && isNaN(Number(fk_id))) {
-                        const Model = it.item_type === 'MATERIAL' ? Stock.sequelize.models.Material : Stock.sequelize.models.Product;
-                        const record = await Model.findOne({ where: { variant_id: fk_id }, transaction: t });
-                        if (record) fk_id = record.id;
-                    }
-
-                    // Resolve from variant_id if missing
+                    // 1) Resolve by VARIANT_ID
                     if (!fk_id && it.variant_id) {
-                        const Model = it.item_type === 'MATERIAL' ? Stock.sequelize.models.Material : Stock.sequelize.models.Product;
-                        const record = await Model.findOne({ where: { variant_id: it.variant_id }, transaction: t });
-                        if (record) fk_id = record.id;
-                    }
-
-                    // it.item_type = it.item_type.toString().toUpperCase();
-
-                    if (it.variant_id) {
-                        const Model = it.item_type === 'MATERIAL' ? Stock.sequelize.models.Material : Stock.sequelize.models.Product;
-                        const temp_res = await Model.findOne({ where: { variant_id: it.variant_id }, transaction: t });
-                        if (temp_res) {
-                            it.item_name = temp_res.dataValues.name;
+                        record = await Model.findOne({ where: { variant_id: it.variant_id }, transaction: t });
+                        if (record) {
+                            fk_id = record.id;
+                            item_name = record.dataValues.name;
                         }
                     }
 
-                    // Resolve from sku/product_sku if missing and no variant_id
-                    if (!fk_id && (it.sku || it.product_sku)) {
-                        const skuValue = it.sku || it.product_sku;
-                        const Model = it.item_type === 'MATERIAL' ? Stock.sequelize.models.Material : Stock.sequelize.models.Product;
-                        const record = await Model.findOne({ where: { sku: skuValue }, transaction: t });
-                        if (record) fk_id = record.id;
+                    // 2) Resolve by SKU
+                    const skuValue = it.sku || it.product_sku || it.product_code;
+                    if (!fk_id && skuValue) {
+                        record = await Model.findOne({ where: { sku: skuValue }, transaction: t });
+                        if (record) {
+                            fk_id = record.id;
+                            item_name = record.dataValues.name;
+                        }
                     }
 
-                    if (!fk_id || isNaN(Number(fk_id))) {
-                        await t.rollback();
-                        return res.status(400).json({ success: false, message: 'fk_id or resolvable variant_id/sku required for every item' });
-                    }
+                    if (!fk_id)
+                        throw new Error('Unable to resolve fk_id for item (sku/variant missing)');
 
-                    // qty required numeric
-                    if (it.qty == null || isNaN(Number(it.qty))) {
-                        await t.rollback();
-                        return res.status(400).json({ success: false, message: 'qty is required and must be numeric for every item' });
-                    }
+                    // Validate qty
+                    if (it.qty == null || isNaN(Number(it.qty)))
+                        throw new Error('qty is required and must be numeric');
                     it.qty = Number(it.qty);
 
-                    // cost normalization
+                    // Cost normalization
                     it.cost = it.cost != null && !isNaN(Number(it.cost)) ? Number(it.cost) : 0;
 
-                    // sku required
-                    const skuValue = it.sku || it.product_sku || it.product_code;
-                    if (!skuValue) {
-                        await t.rollback();
-                        return res.status(400).json({ success: false, message: 'sku (or product_sku/product_code) required for every item' });
-                    }
+                    if (!skuValue)
+                        throw new Error('sku (or product_sku/product_code) required');
 
-                    // description: prefer product_name or construct from payload
+                    // Description
                     if (!it.description) {
                         if (it.product_name) it.description = it.product_name;
-                        else if (payload.type || payload.supplier) it.description = `${payload.type || 'grn'} ${payload.supplier || ''}`.trim();
+                        else if (payload.type || payload.supplier) it.description = `${payload.type} ${payload.supplier || ''}`.trim();
                     }
 
-                    // date: prefer line.date then GRN-level grn_date, normalize to YYYY-MM-DD
+                    // Date normalization
                     const dateRaw = it.date || payload.grn_date || payload.date;
                     if (dateRaw) {
                         const d = new Date(dateRaw);
-                        if (isNaN(d.getTime())) {
-                            await t.rollback();
-                            return res.status(400).json({ success: false, message: `Invalid date for item: ${dateRaw}` });
-                        }
+                        if (isNaN(d.getTime())) throw new Error(`Invalid date: ${dateRaw}`);
                         it.date = d.toISOString().split('T')[0];
                     } else {
                         it.date = new Date().toISOString().split('T')[0];
                     }
 
-                    // map warehouse into tags if provided
+                    // Warehouse -> tags
                     if (!it.tags && it.warehouse) it.tags = String(it.warehouse);
 
-                    // map allowed model fields and rename fields to match model
+                    // Map allowed fields
                     const allowed = ['item_type', 'fk_id', 'sku', 'variant_id', 'batch_number', 'description', 'cost', 'date', 'qty', 'unit', 'tags', 'approver_id', 'status', 'createdBy', 'updatedBy', 'deletedBy', 'movement_type', 'source', 'item_name'];
                     const entry = {};
                     for (const k of allowed) if (Object.prototype.hasOwnProperty.call(it, k)) entry[k] = it[k];
 
-                    // ensure sku exists
+                    // Set defaults
                     if (!entry.sku) entry.sku = skuValue;
                     entry.fk_id = fk_id;
                     entry.item_type = it.item_type;
+                    entry.item_name = item_name || 'Unknown Item';
 
+                    // Movement defaults: both PRODUCT and MATERIAL default to PURCHASE
+                    if (!entry.movement_type) entry.movement_type = 'IN';
+                    if (entry.item_type == 'PRODUCT') { entry.source = 'PRODUCTION'; } else if (entry.item_type == 'MATERIAL') { entry.source = 'PURCHASE'; }
                     prepared.push(entry);
                 }
 
@@ -150,6 +131,7 @@ const StockController = {
                 return res.status(500).json({ success: false, message: innerErr.message });
             }
         } catch (err) {
+            console.error('[StockController.bulkCreate] Error:', err);
             return res.status(500).json({ success: false, message: err.message });
         }
     },

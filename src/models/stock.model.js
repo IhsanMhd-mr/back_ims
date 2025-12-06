@@ -75,7 +75,7 @@ export const Stock = sequelize.define('Stock', {
         allowNull: false,
         defaultValue: 'ADJUSTMENT',
         validate: {
-            isIn: [['PURCHASE', 'SALES', 'ADJUSTMENT', 'RETURN', 'OPENING_STOCK']]
+            isIn: [['PURCHASE','PRODUCTION', 'SALES', 'ADJUSTMENT', 'RETURN', 'OPENING_STOCK']]
         },
         comment: 'Identifies the source/reason for the stock movement'
     },
