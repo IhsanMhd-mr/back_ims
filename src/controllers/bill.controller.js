@@ -149,6 +149,32 @@ const BillController = {
     }
   },
 
+  // Handle bill status changes (PENDING, COMPLETED, REJECTED)
+  statusHandle: async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const status = String(req.params.status || '').trim().toUpperCase();
+      
+      if (!id) return res.status(400).json({ success: false, message: 'Invalid bill id' });
+      if (!['PENDING', 'COMPLETED', 'REJECTED'].includes(status)) {
+        return res.status(400).json({ success: false, message: `Invalid status: ${status}. Must be PENDING, COMPLETED, or REJECTED` });
+      }
+      
+      const user_id = Number(req.body?.user_id || req.query?.user_id || 0) || null;
+      const reason = String(req.body?.reason || req.query?.reason || '').trim() || null;
+      
+      const updateData = { status, updated_by: user_id };
+      
+      const result = await BillRepo.updateBill(id, updateData);
+      
+      if (result.success) return res.status(200).json(result);
+      if (result.message === 'Bill not found') return res.status(404).json(result);
+      return res.status(400).json(result);
+    } catch (err) {
+      return res.status(500).json({ success: false, message: err.message });
+    }
+  },
+
   delete: async (req, res) => {
     try {
       const id = Number(req.params.id);
