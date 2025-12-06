@@ -88,7 +88,7 @@ export const Stock = sequelize.define('Stock', {
         allowNull: false,
         defaultValue: 'ACTIVE',
         validate: {
-            isIn: [['ACTIVE', 'INACTIVE', 'DELETED', 'PENDING']]
+            isIn: [['ACTIVE', 'INACTIVE', 'PENDING', 'COMPLETED','REJECTED', 'DELETED']]
         }
     },
     createdBy: {

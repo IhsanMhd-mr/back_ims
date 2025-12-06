@@ -12,6 +12,26 @@ const StockRepo = {
         }
     },
 
+    bulkCreateStockEntries: async (stockDataArray) => {
+        try {
+            if (!Array.isArray(stockDataArray) || !stockDataArray.length) {
+                return { success: false, message: 'stockDataArray required' };
+            }
+            
+            console.log(`[StockRepo] Bulk create: ${stockDataArray.length} records`);
+            const createdStocks = await Stock.bulkCreate(stockDataArray, { returning: true, validate: true });
+            console.log(`[StockRepo] ✅ Success: ${createdStocks.length} created`);
+            return { success: true, data: createdStocks, message: `${createdStocks.length} stock records created` };
+        } catch (error) {
+            console.error(`[StockRepo] Bulk create ERROR:`);
+            console.error(`├─ Message: ${error.message}`);
+            console.error(`├─ Code: ${error.code}`);
+            console.error(`├─ Name: ${error.name}`);
+            console.error(`└─ Details: ${JSON.stringify(error.errors || error.original || 'N/A')}`);
+            return { success: false, message: error.message };
+        }
+    },
+
     getStocks: async ({ page = 1, limit = 20, filters = {}, order = [['createdAt', 'DESC']] } = {}) => {
         try {
             const offset = (page - 1) * limit;

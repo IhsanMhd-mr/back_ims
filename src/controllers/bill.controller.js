@@ -3,6 +3,7 @@ import { Product } from '../models/product.model.js';
 import { Bill } from '../models/bill.model.js';
 import { ItemSale } from '../models/item-sale.model.js';
 import { BillRepo } from '../repositories/bill.repository.js';
+import StockService from '../services/stock.service.js';
 
 const BillController = {
   // Create a bill from product IDs and quantities in the request body.
@@ -138,8 +139,8 @@ const BillController = {
   update: async (req, res) => {
     try {
       const id = Number(req.params.id);
+      if (!id) return res.status(400).json({ success: false, message: 'Invalid bill id' });
       const payload = req.body || {};
-      console.log('Update Bill Payload:------------------<<<<<<<', payload);
       const result = await BillRepo.updateBill(id, payload);
       if (result.success) return res.status(200).json(result);
       if (result.message === 'Bill not found') return res.status(404).json(result);
@@ -157,15 +158,23 @@ const BillController = {
       
       if (!id) return res.status(400).json({ success: false, message: 'Invalid bill id' });
       if (!['PENDING', 'COMPLETED', 'REJECTED'].includes(status)) {
-        return res.status(400).json({ success: false, message: `Invalid status: ${status}. Must be PENDING, COMPLETED, or REJECTED` });
+        return res.status(400).json({ success: false, message: `Invalid status: ${status}` });
       }
       
       const user_id = Number(req.body?.user_id || req.query?.user_id || 0) || null;
-      const reason = String(req.body?.reason || req.query?.reason || '').trim() || null;
-      
       const updateData = { status, updated_by: user_id };
-      
       const result = await BillRepo.updateBill(id, updateData);
+      
+      if (result.success && status === 'COMPLETED') {
+        try {
+          const billResult = await BillRepo.getById(id);
+          if (billResult.success && billResult.data?.items?.length > 0) {
+            await StockService.createStockFromBillCompletion(billResult.data, user_id);
+          }
+        } catch (stockErr) {
+          console.error(`[Bill ${id}] Stock error: ${stockErr.message}`);
+        }
+      }
       
       if (result.success) return res.status(200).json(result);
       if (result.message === 'Bill not found') return res.status(404).json(result);
