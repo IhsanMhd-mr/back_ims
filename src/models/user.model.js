@@ -56,7 +56,7 @@ export const User = sequelize.define(
         status: {
             type: DataTypes.STRING,
             allowNull: false,
-            defaultValue: 'active' // active, inactive, deleted, pending, etc.
+            defaultValue: 'ACTIVE' // ACTIVE, INACTIVE, DELETED, PENDING, etc.
         },
         createdBy: {
             type: DataTypes.INTEGER,

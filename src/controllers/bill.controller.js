@@ -80,7 +80,7 @@ const BillController = {
         subtotal: totalBeforeBillDiscount,
         discount_percent: billDiscountPercent,
         total_amount: finalTotal,
-        status: 'pending'
+        status: 'PENDING'
       }, { transaction: t });
 
       // attach bill_id and insert item sales

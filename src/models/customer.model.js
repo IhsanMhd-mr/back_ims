@@ -42,7 +42,7 @@ export const Customer = sequelize.define(
     status: {
       type: DataTypes.STRING,
       allowNull: false,
-      defaultValue: 'active'
+      defaultValue: 'ACTIVE'
     },
     createdBy: {
       type: DataTypes.INTEGER,

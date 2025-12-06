@@ -18,7 +18,7 @@ export const migrateStockMovement = async () => {
             await queryInterface.addColumn('stock_records', 'movement_type', {
                 type: sequelize.DataTypes.STRING(10),
                 allowNull: false,
-                defaultValue: 'in'
+                defaultValue: 'IN'
             });
             console.log('[Migration] ✅ movement_type column added');
         } else {
@@ -30,7 +30,7 @@ export const migrateStockMovement = async () => {
             await queryInterface.addColumn('stock_records', 'source', {
                 type: sequelize.DataTypes.STRING(50),
                 allowNull: false,
-                defaultValue: 'adjustment'
+                defaultValue: 'ADJUSTMENT'
             });
             console.log('[Migration] ✅ source column added');
         } else {

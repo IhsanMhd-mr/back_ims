@@ -56,9 +56,9 @@ export const Material = sequelize.define(
         status: {
             type: DataTypes.STRING,
             allowNull: false,
-            defaultValue: 'active',
+            defaultValue: 'ACTIVE',
             validate: {
-                isIn: [['active', 'inactive', 'deleted', 'pending']]
+                isIn: [['ACTIVE', 'INACTIVE', 'DELETED', 'PENDING']]
             }
         },
         createdBy: {

@@ -103,12 +103,12 @@ const UserRepo = {
     }
   },
 
-  // Soft-delete: sets status='deleted' and lets paranoid handle deletedAt if needed
+  // Soft-delete: sets status='DELETED' and lets paranoid handle deletedAt if needed
   deleteUser: async (id, deletedBy = null) => {
     try {
       const user = await User.findByPk(id);
       if (!user) return { success: false, message: 'User not found' };
-      await user.update({ status: 'deleted', deletedBy });
+      await user.update({ status: 'DELETED', deletedBy });
       await user.destroy(); // with paranoid:true it sets deletedAt
       return { success: true, message: 'User soft-deleted successfully' };
     } catch (error) {

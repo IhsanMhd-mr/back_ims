@@ -93,7 +93,7 @@ const run = async () => {
         customer_name: `Bulk Customer ${i}`,
         date: new Date(),
         total_amount: 0,
-        status: 'pending'
+        status: 'PENDING'
       });
       // create an item for the bill referencing a product
       const prod = products[(i - 1) % products.length];

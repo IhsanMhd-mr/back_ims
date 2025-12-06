@@ -39,11 +39,11 @@ const StockController = {
                     if (it.purchase_cost != null && it.cost == null) it.cost = it.purchase_cost;
                     if (it.batch_no != null && it.batch_number == null) it.batch_number = it.batch_no;
 
-                    // Determine item_type (default to 'product' if not specified)
-                    if (!it.item_type) it.item_type = 'product';
-                    if (!['material', 'product'].includes(it.item_type)) {
+                    // Determine item_type (default to 'PRODUCT' if not specified)
+                    if (!it.item_type) it.item_type = 'PRODUCT';
+                    if (!['MATERIAL', 'PRODUCT'].includes(it.item_type)) {
                         await t.rollback();
-                        return res.status(400).json({ success: false, message: 'item_type must be "material" or "product"' });
+                        return res.status(400).json({ success: false, message: 'item_type must be "MATERIAL" or "PRODUCT"' });
                     }
 
                     // // Convert item_type to uppercase
@@ -55,14 +55,14 @@ const StockController = {
 
                     // If fk_id is a string variant id, resolve it
                     if (fk_id && typeof fk_id === 'string' && isNaN(Number(fk_id))) {
-                        const Model = it.item_type === 'material' ? Stock.sequelize.models.Material : Stock.sequelize.models.Product;
+                        const Model = it.item_type === 'MATERIAL' ? Stock.sequelize.models.Material : Stock.sequelize.models.Product;
                         const record = await Model.findOne({ where: { variant_id: fk_id }, transaction: t });
                         if (record) fk_id = record.id;
                     }
 
                     // Resolve from variant_id if missing
                     if (!fk_id && it.variant_id) {
-                        const Model = it.item_type === 'material' ? Stock.sequelize.models.Material : Stock.sequelize.models.Product;
+                        const Model = it.item_type === 'MATERIAL' ? Stock.sequelize.models.Material : Stock.sequelize.models.Product;
                         const record = await Model.findOne({ where: { variant_id: it.variant_id }, transaction: t });
                         if (record) fk_id = record.id;
                     }
@@ -70,7 +70,7 @@ const StockController = {
                     // it.item_type = it.item_type.toString().toUpperCase();
 
                     if (it.variant_id) {
-                        const Model = it.item_type === 'material' ? Stock.sequelize.models.Material : Stock.sequelize.models.Product;
+                        const Model = it.item_type === 'MATERIAL' ? Stock.sequelize.models.Material : Stock.sequelize.models.Product;
                         const temp_res = await Model.findOne({ where: { variant_id: it.variant_id }, transaction: t });
                         if (temp_res) {
                             it.item_name = temp_res.dataValues.name;
@@ -80,7 +80,7 @@ const StockController = {
                     // Resolve from sku/product_sku if missing and no variant_id
                     if (!fk_id && (it.sku || it.product_sku)) {
                         const skuValue = it.sku || it.product_sku;
-                        const Model = it.item_type === 'material' ? Stock.sequelize.models.Material : Stock.sequelize.models.Product;
+                        const Model = it.item_type === 'MATERIAL' ? Stock.sequelize.models.Material : Stock.sequelize.models.Product;
                         const record = await Model.findOne({ where: { sku: skuValue }, transaction: t });
                         if (record) fk_id = record.id;
                     }

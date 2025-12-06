@@ -44,7 +44,7 @@ export const Bill = sequelize.define(
     status: {
       type: DataTypes.STRING,
       allowNull: false,
-      defaultValue: "pending",
+      defaultValue: "PENDING",
     },
     customer_id: {
       type: DataTypes.INTEGER,

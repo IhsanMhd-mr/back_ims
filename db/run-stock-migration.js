@@ -107,7 +107,7 @@ const migrate = async () => {
         await sequelize.query(`
           ALTER TABLE stock_records 
           ADD CONSTRAINT check_item_type 
-          CHECK (item_type IN ('material', 'product'))
+          CHECK (item_type IN ('MATERIAL', 'PRODUCT'))
         `);
         console.log('  ✓ Added item_type CHECK constraint');
       } catch (err) {
@@ -131,7 +131,7 @@ const migrate = async () => {
         await sequelize.query(`
           ALTER TABLE stock_records 
           ADD CONSTRAINT check_status 
-          CHECK (status IN ('active', 'inactive', 'deleted', 'pending'))
+          CHECK (status IN ('ACTIVE', 'INACTIVE', 'DELETED', 'PENDING'))
         `);
         console.log('  ✓ Added status CHECK constraint with valid values');
       } catch (err) {
@@ -139,7 +139,7 @@ const migrate = async () => {
       }
 
       try {
-        await sequelize.query(`ALTER TABLE stock_records ALTER COLUMN status SET DEFAULT 'active'`);
+        await sequelize.query(`ALTER TABLE stock_records ALTER COLUMN status SET DEFAULT 'ACTIVE'`);
         console.log('  ✓ Updated status default to \'active\'');
       } catch (err) {
         console.warn('  ⚠ Could not update default:', err.message);
@@ -147,9 +147,9 @@ const migrate = async () => {
 
       try {
         await sequelize.query(`
-          UPDATE stock_records 
-          SET status = 'active' 
-          WHERE status NOT IN ('active', 'inactive', 'deleted', 'pending')
+          UPDATE stock_records
+          SET status = 'ACTIVE' 
+          WHERE status NOT IN ('ACTIVE', 'INACTIVE', 'DELETED', 'PENDING')
         `);
         console.log('  ✓ Migrated old status values to valid enum');
       } catch (err) {

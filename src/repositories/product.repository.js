@@ -154,12 +154,12 @@ const ProductRepo = {
         }
     },
 
-    // Soft-delete: sets status='deleted' and lets paranoid handle deletedAt if needed
+    // Soft-delete: sets status='DELETED' and lets paranoid handle deletedAt if needed
     deleteProduct: async (id, deletedBy = null) => {
         try {
             const product = await Product.findByPk(id);
             if (!product) return { success: false, message: 'Product not found' };
-            await product.update({ status: 'deleted', deletedBy });
+            await product.update({ status: 'DELETED', deletedBy });
             await product.destroy(); // with paranoid:true it sets deletedAt
             return { success: true, message: 'Product soft-deleted successfully' };
         } catch (error) {

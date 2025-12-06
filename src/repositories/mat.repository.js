@@ -69,12 +69,12 @@ const MaterialRepo = {
         }
     },
 
-    // Soft-delete: sets status='deleted' and lets paranoid handle deletedAt if needed
+    // Soft-delete: sets status='DELETED' and lets paranoid handle deletedAt if needed
     deleteMaterial: async (id, deletedBy = null) => {
         try {
             const material = await Material.findByPk(id);
             if (!material) return { success: false, message: 'Material not found' };
-            await material.update({ status: 'deleted', deletedBy });
+            await material.update({ status: 'DELETED', deletedBy });
             await material.destroy(); // with paranoid:true it sets deletedAt
             return { success: true, message: 'Material soft-deleted successfully' };
         } catch (error) {

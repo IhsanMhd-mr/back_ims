@@ -11,7 +11,7 @@ export const Stock = sequelize.define('Stock', {
         type: DataTypes.STRING,
         allowNull: false,
         validate: {
-            isIn: [['material', 'product']]
+            isIn: [['MATERIAL', 'PRODUCT']]
         }
     },
     fk_id: {
@@ -64,18 +64,18 @@ export const Stock = sequelize.define('Stock', {
     movement_type: {
         type: DataTypes.STRING,
         allowNull: false,
-        defaultValue: 'in',
+        defaultValue: 'IN',
         validate: {
-            isIn: [['in', 'out']]
+            isIn: [['IN', 'OUT']]
         },
         comment: 'Tracks whether stock is incoming or outgoing'
     },
     source: {
         type: DataTypes.STRING,
         allowNull: false,
-        defaultValue: 'adjustment',
+        defaultValue: 'ADJUSTMENT',
         validate: {
-            isIn: [['purchase', 'sales', 'adjustment', 'return', 'opening_stock']]
+            isIn: [['PURCHASE', 'SALES', 'ADJUSTMENT', 'RETURN', 'OPENING_STOCK']]
         },
         comment: 'Identifies the source/reason for the stock movement'
     },
@@ -86,9 +86,9 @@ export const Stock = sequelize.define('Stock', {
     status: {
         type: DataTypes.STRING,
         allowNull: false,
-        defaultValue: 'active',
+        defaultValue: 'ACTIVE',
         validate: {
-            isIn: [['active', 'inactive', 'deleted', 'pending']]
+            isIn: [['ACTIVE', 'INACTIVE', 'DELETED', 'PENDING']]
         }
     },
     createdBy: {

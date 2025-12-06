@@ -118,12 +118,12 @@ const StockRepo = {
         }
     },
 
-    // Soft-delete: sets status='deleted' and lets paranoid handle deletedAt if needed
+    // Soft-delete: sets status='DELETED' and lets paranoid handle deletedAt if needed
     deleteStock: async (id, deletedBy = null) => {
         try {
             const stock = await Stock.findByPk(id);
-            if (!stock) return { success: false, message: 'Stock not found' };
-            await stock.update({ status: 'deleted', deletedBy });
+            if (!stock) return { success: false, message: 'Stock record not found' };
+            await stock.update({ status: 'DELETED', deletedBy });
             await stock.destroy(); // with paranoid:true it sets deletedAt
             return { success: true, message: 'Stock soft-deleted successfully' };
         } catch (error) {
@@ -181,7 +181,7 @@ const StockRepo = {
             // Use raw query to aggregate quickly
             const sql = `SELECT s.product_id, SUM(s.qty) as total_qty
                 FROM stock_records s
-                WHERE s.status = 'active'
+                WHERE s.status = 'ACTIVE'
                 GROUP BY s.product_id`;
             const [results] = await Stock.sequelize.query(sql, { type: Stock.sequelize.QueryTypes.SELECT });
             return { success: true, data: results };
@@ -198,7 +198,7 @@ const StockRepo = {
             const end = (typeof end_date === 'string') ? new Date(end_date) : end_date;
             if (isNaN(start.getTime()) || isNaN(end.getTime())) return { success: false, message: 'Invalid date range' };
 
-            let sql = `SELECT s.product_id, SUM(s.qty) as total_qty FROM stock_records s WHERE s.status = 'active' AND s.created_at >= :start AND s.created_at <= :end`;
+            let sql = `SELECT s.product_id, SUM(s.qty) as total_qty FROM stock_records s WHERE s.status = 'ACTIVE' AND s.created_at >= :start AND s.created_at <= :end`;
             const replacements = { start: start.toISOString(), end: end.toISOString() };
             if (product_id) {
                 sql += ` AND s.product_id = :product_id`;
@@ -213,7 +213,7 @@ const StockRepo = {
     },
 
     // Create a stock adjustment record (positive or negative qty) with a note
-    adjustStock: async ({ product_id, variant_id, qty, note = '', approver_id = null, createdBy = null, movement_type = 'in', source = 'adjustment' }) => {
+    adjustStock: async ({ product_id, variant_id, qty, note = '', approver_id = null, createdBy = null, movement_type = 'IN', source = 'ADJUSTMENT' }) => {
         try {
             // Resolve product_id if variant_id provided
             let pid = product_id;
@@ -255,12 +255,12 @@ const StockRepo = {
                 if (!variant || qty <= 0) { await t.rollback(); return { success: false, message: 'Invalid material entry' }; }
                 const mat = await Stock.sequelize.models.Product.findOne({ where: { variant_id: variant }, transaction: t });
                 if (!mat) { await t.rollback(); return { success: false, message: `Material not found: ${variant}` }; }
-                await Stock.create({ product_id: mat.id, qty: -Math.abs(qty), description: `Converted to ${product_variant}`, createdBy, movement_type: 'out', source: 'adjustment' }, { transaction: t });
+                await Stock.create({ product_id: mat.id, qty: -Math.abs(qty), description: `Converted to ${product_variant}`, createdBy, movement_type: 'OUT', source: 'ADJUSTMENT' }, { transaction: t });
             }
 
             // Add produced product qty
             if (produced_qty > 0) {
-                await Stock.create({ product_id: produced.id, qty: Number(produced_qty), description: `Produced from materials`, createdBy, movement_type: 'in', source: 'adjustment' }, { transaction: t });
+                await Stock.create({ product_id: produced.id, qty: Number(produced_qty), description: `Produced from materials`, createdBy, movement_type: 'IN', source: 'ADJUSTMENT' }, { transaction: t });
             }
 
             await t.commit();
@@ -282,7 +282,7 @@ const StockRepo = {
                 if (!variant || qty <= 0) { await t.rollback(); return { success: false, message: 'Invalid item entry' }; }
                 const prod = await Stock.sequelize.models.Product.findOne({ where: { variant_id: variant }, transaction: t });
                 if (!prod) { await t.rollback(); return { success: false, message: `Product not found: ${variant}` }; }
-                await Stock.create({ product_id: prod.id, qty: -Math.abs(qty), description: `Sold via POS`, createdBy, movement_type: 'out', source: 'sales' }, { transaction: t });
+                await Stock.create({ product_id: prod.id, qty: -Math.abs(qty), description: `Sold via POS`, createdBy, movement_type: 'OUT', source: 'SALES' }, { transaction: t });
             }
             await t.commit();
             return { success: true, message: 'Stock updated for sale' };
@@ -308,7 +308,7 @@ const StockRepo = {
             // aggregate stock up to end of month (inclusive)
             const sql = `SELECT s.product_id, SUM(s.qty) as total_qty
                 FROM stock_records s
-                WHERE s.status = 'active' AND s.created_at <= :lastDay
+                WHERE s.status = 'ACTIVE' AND s.created_at <= :lastDay
                 GROUP BY s.product_id`;
             const [rows] = await Stock.sequelize.query(sql, { replacements: { lastDay: lastDayIso }, type: Stock.sequelize.QueryTypes.SELECT });
 
@@ -355,7 +355,7 @@ const StockRepo = {
             const latest = await Stock.sequelize.models.StockMonthlySummary.findOne({ order: [['year', 'DESC'], ['month', 'DESC']] });
             if (!latest) {
                 // fallback to full aggregation
-                const sql = `SELECT s.product_id, SUM(s.qty) as total_qty FROM stock_records s WHERE s.status = 'active' GROUP BY s.product_id`;
+                const sql = `SELECT s.product_id, SUM(s.qty) as total_qty FROM stock_records s WHERE s.status = 'ACTIVE' GROUP BY s.product_id`;
                 const [rows] = await Stock.sequelize.query(sql, { type: Stock.sequelize.QueryTypes.SELECT });
                 return { success: true, data: rows };
             }
@@ -367,7 +367,7 @@ const StockRepo = {
             const snapshotEnd = new Date(nextMonth.getTime() - 1).toISOString();
 
             // aggregate deltas after snapshotEnd
-            const deltaSql = `SELECT s.product_id, SUM(s.qty) as delta_qty FROM stock_records s WHERE s.status = 'active' AND s.created_at > :snapshotEnd GROUP BY s.product_id`;
+            const deltaSql = `SELECT s.product_id, SUM(s.qty) as delta_qty FROM stock_records s WHERE s.status = 'ACTIVE' AND s.created_at > :snapshotEnd GROUP BY s.product_id`;
             const [deltas] = await Stock.sequelize.query(deltaSql, { replacements: { snapshotEnd }, type: Stock.sequelize.QueryTypes.SELECT });
 
             // load snapshot rows
@@ -414,7 +414,7 @@ const StockRepo = {
 
             // ledger records from start -> now
             const { Op } = require('sequelize');
-            const records = await Stock.findAll({ where: { createdAt: { [Op.gte]: start, [Op.lte]: now }, status: 'active' }, order: [['id', 'DESC']] });
+            const records = await Stock.findAll({ where: { createdAt: { [Op.gte]: start, [Op.lte]: now }, status: 'ACTIVE' }, order: [['id', 'DESC']] });
 
             return { success: true, data: { snapshotInfo, snapshotRows, start: start.toISOString(), end: now.toISOString(), records } };
         } catch (error) {
