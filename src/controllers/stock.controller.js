@@ -20,6 +20,7 @@ const StockController = {
         try {
             const payload = req.body || {};
             // normalize to items array
+            console.log('Bulk Create Stock Payload: ------------------<<<<<', payload);
             let items = [];
             if (Array.isArray(payload)) items = payload;
             else if (Array.isArray(payload.items)) items = payload.items;
@@ -45,6 +46,9 @@ const StockController = {
                         return res.status(400).json({ success: false, message: 'item_type must be "material" or "product"' });
                     }
 
+                    // // Convert item_type to uppercase
+                    // it.item_type = it.item_type.toString().toUpperCase();
+
                     // Resolve fk_id from product_id or variant_id or sku
                     let fk_id = it.fk_id;
                     if (!fk_id && it.product_id) fk_id = it.product_id;
@@ -63,7 +67,17 @@ const StockController = {
                         if (record) fk_id = record.id;
                     }
 
-                    // Resolve from sku/product_sku if missing
+                    // it.item_type = it.item_type.toString().toUpperCase();
+
+                    if (it.variant_id) {
+                        const Model = it.item_type === 'material' ? Stock.sequelize.models.Material : Stock.sequelize.models.Product;
+                        const temp_res = await Model.findOne({ where: { variant_id: it.variant_id }, transaction: t });
+                        if (temp_res) {
+                            it.item_name = temp_res.dataValues.name;
+                        }
+                    }
+
+                    // Resolve from sku/product_sku if missing and no variant_id
                     if (!fk_id && (it.sku || it.product_sku)) {
                         const skuValue = it.sku || it.product_sku;
                         const Model = it.item_type === 'material' ? Stock.sequelize.models.Material : Stock.sequelize.models.Product;
@@ -116,7 +130,7 @@ const StockController = {
                     if (!it.tags && it.warehouse) it.tags = String(it.warehouse);
 
                     // map allowed model fields and rename fields to match model
-                    const allowed = ['item_type','fk_id','sku','variant_id','batch_number','description','cost','date','qty','unit','tags','approver_id','status','createdBy','updatedBy','deletedBy','movement_type','source'];
+                    const allowed = ['item_type', 'fk_id', 'sku', 'variant_id', 'batch_number', 'description', 'cost', 'date', 'qty', 'unit', 'tags', 'approver_id', 'status', 'createdBy', 'updatedBy', 'deletedBy', 'movement_type', 'source', 'item_name'];
                     const entry = {};
                     for (const k of allowed) if (Object.prototype.hasOwnProperty.call(it, k)) entry[k] = it[k];
 
@@ -414,29 +428,29 @@ const StockController = {
         let start = null; let end = null;
         switch (period) {
             case 'today':
-                start = new Date(now); start.setHours(0,0,0,0);
-                end = new Date(now); end.setHours(23,59,59,999);
+                start = new Date(now); start.setHours(0, 0, 0, 0);
+                end = new Date(now); end.setHours(23, 59, 59, 999);
                 break;
             case 'yesterday':
-                start = new Date(now); start.setDate(start.getDate() - 1); start.setHours(0,0,0,0);
-                end = new Date(start); end.setHours(23,59,59,999);
+                start = new Date(now); start.setDate(start.getDate() - 1); start.setHours(0, 0, 0, 0);
+                end = new Date(start); end.setHours(23, 59, 59, 999);
                 break;
             case 'this_month':
             case 'thismonth':
             case 'month':
-                start = new Date(now.getFullYear(), now.getMonth(), 1); start.setHours(0,0,0,0);
-                end = new Date(now); end.setHours(23,59,59,999);
+                start = new Date(now.getFullYear(), now.getMonth(), 1); start.setHours(0, 0, 0, 0);
+                end = new Date(now); end.setHours(23, 59, 59, 999);
                 break;
             case 'last_three_months':
             case 'last3':
             case 'last_three':
-                start = new Date(now); start.setMonth(start.getMonth() - 3); start.setHours(0,0,0,0);
-                end = new Date(now); end.setHours(23,59,59,999);
+                start = new Date(now); start.setMonth(start.getMonth() - 3); start.setHours(0, 0, 0, 0);
+                end = new Date(now); end.setHours(23, 59, 59, 999);
                 break;
             case 'this_year':
             case 'year':
-                start = new Date(now.getFullYear(), 0, 1); start.setHours(0,0,0,0);
-                end = new Date(now); end.setHours(23,59,59,999);
+                start = new Date(now.getFullYear(), 0, 1); start.setHours(0, 0, 0, 0);
+                end = new Date(now); end.setHours(23, 59, 59, 999);
                 break;
             default:
                 return filters;
