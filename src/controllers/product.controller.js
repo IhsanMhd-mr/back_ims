@@ -25,9 +25,10 @@ const ProductController = {
             const limit = Number(req.query.limit) || 20;
             const filters = {};
             if (req.query.status) filters.status = req.query.status;
+            if (req.query.date) filters.date = req.query.date; // DATEONLY format: 2025-12-06
             // console.log(`[ProductController][${traceId}] GET ALL - Query params:`, { page, limit, filters });
             
-            const result = await ProductRepo.getProducts({ page, limit, filters });
+            const result = await ProductRepo.getProducts({ page, limit, filters, order: [['createdAt', 'DESC']] });
 
             // normalize Sequelize instances to plain objects for consistent API responses
             const responsePayload = { ...result };
@@ -56,7 +57,7 @@ const ProductController = {
             const searchTerm = req.query.q || req.query.search || '';
             const page = Number(req.query.page) || 1;
             const limit = Number(req.query.limit) || 20;
-            const result = await ProductRepo.searchProducts({ searchTerm, page, limit });
+            const result = await ProductRepo.searchProducts({ searchTerm, page, limit, order: [['createdAt', 'DESC']] });
             if (result.success) return res.status(200).json(result);
             return res.status(400).json(result);
         } catch (err) {

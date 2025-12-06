@@ -27,20 +27,23 @@ export const Material = sequelize.define(
             allowNull: true,
         },
         cost: {
-            type: DataTypes.STRING,
+            type: DataTypes.DECIMAL(12, 2),
             allowNull: false,
+            defaultValue: 0
         },
         mrp: {
-            type: DataTypes.STRING,
+            type: DataTypes.DECIMAL(12, 2),
             allowNull: false,
+            defaultValue: 0
         },
         date: {
-            type: DataTypes.STRING,
-            allowNull: false,
+            type: DataTypes.DATEONLY,
+            allowNull: true
         },
         quantity: {
-            type: DataTypes.INTEGER,
-            allowNull: false
+            type: DataTypes.FLOAT,
+            allowNull: false,
+            defaultValue: 0
         },
         unit: {
             type: DataTypes.STRING,

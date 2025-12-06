@@ -179,7 +179,7 @@ const ProductRepo = {
         }
     },
 
-    searchProducts: async ({ searchTerm = '', page = 1, limit = 20 } = {}) => {
+    searchProducts: async ({ searchTerm = '', page = 1, limit = 20, order = [['createdAt', 'DESC']] } = {}) => {
         try {
             const offset = (page - 1) * limit;
             const where = {
@@ -192,7 +192,7 @@ const ProductRepo = {
                 where,
                 limit,
                 offset,
-                order: [['createdAt', 'DESC']]
+                order
             });
             return {
                 success: true,
