@@ -26,6 +26,10 @@ export const Stock = sequelize.define('Stock', {
         type: DataTypes.STRING,
         allowNull: true
     },
+    item_name: {
+        type: DataTypes.TEXT,
+        allowNull: true
+    },
     batch_number: {
         type: DataTypes.STRING,
         allowNull: true,
