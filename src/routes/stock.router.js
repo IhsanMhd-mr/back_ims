@@ -13,6 +13,11 @@ router.get('/period', StockController.getByPeriod);
 router.get('/get/:id', StockController.getById);
 router.get('/search', StockController.search);
 
+// --- Movement tracking (filter by movement_type and source) -------
+// GET /stock/movements?movement_type=in&source=purchase&page=1&limit=20
+// GET /stock/movements?movement_type=out&source=sales
+router.get('/movements', StockController.getAll); // reuses getAll with filters
+
 // --- Adjustments (manual adjustments with notes/audit) -------------------
 router.post('/adjust', StockController.adjust);
 

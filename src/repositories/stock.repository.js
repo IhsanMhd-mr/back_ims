@@ -85,7 +85,7 @@ const StockRepo = {
             }
 
             // Merge fields but preserve existing values when falsy values are not intended to override
-            const allowedFields = ['description', 'cost', 'date', 'qty', 'unit', 'tags', 'approver_id', 'product_id', 'batch_number', 'updatedBy'];
+            const allowedFields = ['description', 'cost', 'date', 'qty', 'unit', 'tags', 'approver_id', 'product_id', 'batch_number', 'updatedBy', 'movement_type', 'source'];
             allowedFields.forEach(field => {
                 if (updateData[field] === undefined) {
                     updateData[field] = stock[field];
@@ -213,7 +213,7 @@ const StockRepo = {
     },
 
     // Create a stock adjustment record (positive or negative qty) with a note
-    adjustStock: async ({ product_id, variant_id, qty, note = '', approver_id = null, createdBy = null }) => {
+    adjustStock: async ({ product_id, variant_id, qty, note = '', approver_id = null, createdBy = null, movement_type = 'in', source = 'adjustment' }) => {
         try {
             // Resolve product_id if variant_id provided
             let pid = product_id;
@@ -223,7 +223,7 @@ const StockRepo = {
                 pid = prod.id;
             }
             if (!pid) return { success: false, message: 'product_id or variant_id is required' };
-            const rec = await Stock.create({ product_id: pid, qty, description: note, approver_id, createdBy });
+            const rec = await Stock.create({ product_id: pid, qty, description: note, approver_id, createdBy, movement_type, source });
             // create adjustment audit row
             try {
                 await StockAdjustment.create({ stock_id: rec.id, product_id: pid, variant_id: variant_id || null, qty, note, adjusted_by: approver_id, createdBy });
@@ -255,12 +255,12 @@ const StockRepo = {
                 if (!variant || qty <= 0) { await t.rollback(); return { success: false, message: 'Invalid material entry' }; }
                 const mat = await Stock.sequelize.models.Product.findOne({ where: { variant_id: variant }, transaction: t });
                 if (!mat) { await t.rollback(); return { success: false, message: `Material not found: ${variant}` }; }
-                await Stock.create({ product_id: mat.id, qty: -Math.abs(qty), description: `Converted to ${product_variant}`, createdBy }, { transaction: t });
+                await Stock.create({ product_id: mat.id, qty: -Math.abs(qty), description: `Converted to ${product_variant}`, createdBy, movement_type: 'out', source: 'adjustment' }, { transaction: t });
             }
 
             // Add produced product qty
             if (produced_qty > 0) {
-                await Stock.create({ product_id: produced.id, qty: Number(produced_qty), description: `Produced from materials`, createdBy }, { transaction: t });
+                await Stock.create({ product_id: produced.id, qty: Number(produced_qty), description: `Produced from materials`, createdBy, movement_type: 'in', source: 'adjustment' }, { transaction: t });
             }
 
             await t.commit();
@@ -282,7 +282,7 @@ const StockRepo = {
                 if (!variant || qty <= 0) { await t.rollback(); return { success: false, message: 'Invalid item entry' }; }
                 const prod = await Stock.sequelize.models.Product.findOne({ where: { variant_id: variant }, transaction: t });
                 if (!prod) { await t.rollback(); return { success: false, message: `Product not found: ${variant}` }; }
-                await Stock.create({ product_id: prod.id, qty: -Math.abs(qty), description: `Sold via POS`, createdBy }, { transaction: t });
+                await Stock.create({ product_id: prod.id, qty: -Math.abs(qty), description: `Sold via POS`, createdBy, movement_type: 'out', source: 'sales' }, { transaction: t });
             }
             await t.commit();
             return { success: true, message: 'Stock updated for sale' };

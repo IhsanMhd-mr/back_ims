@@ -57,6 +57,24 @@ export const Stock = sequelize.define('Stock', {
         type: DataTypes.STRING,
         allowNull: true
     },
+    movement_type: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        defaultValue: 'in',
+        validate: {
+            isIn: [['in', 'out']]
+        },
+        comment: 'Tracks whether stock is incoming or outgoing'
+    },
+    source: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        defaultValue: 'adjustment',
+        validate: {
+            isIn: [['purchase', 'sales', 'adjustment', 'return', 'opening_stock']]
+        },
+        comment: 'Identifies the source/reason for the stock movement'
+    },
     approver_id: {
         type: DataTypes.INTEGER,
         allowNull: true

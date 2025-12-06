@@ -116,7 +116,7 @@ const StockController = {
                     if (!it.tags && it.warehouse) it.tags = String(it.warehouse);
 
                     // map allowed model fields and rename fields to match model
-                    const allowed = ['item_type','fk_id','sku','variant_id','batch_number','description','cost','date','qty','unit','tags','approver_id','status','createdBy','updatedBy','deletedBy'];
+                    const allowed = ['item_type','fk_id','sku','variant_id','batch_number','description','cost','date','qty','unit','tags','approver_id','status','createdBy','updatedBy','deletedBy','movement_type','source'];
                     const entry = {};
                     for (const k of allowed) if (Object.prototype.hasOwnProperty.call(it, k)) entry[k] = it[k];
 
@@ -150,6 +150,8 @@ const StockController = {
             if (req.query.fk_id) filters.fk_id = Number(req.query.fk_id);
             if (req.query.sku) filters.sku = req.query.sku;
             if (req.query.variant_id) filters.variant_id = req.query.variant_id;
+            if (req.query.movement_type) filters.movement_type = req.query.movement_type; // 'in' or 'out'
+            if (req.query.source) filters.source = req.query.source; // 'purchase', 'sales', 'adjustment', 'return', 'opening_stock'
             if (req.query.date) filters.date = req.query.date; // DATEONLY format: 2025-12-05
 
             // Time period support: accept start/end ISO dates or year+month
@@ -197,6 +199,8 @@ const StockController = {
             if (req.query.fk_id) filters.fk_id = Number(req.query.fk_id);
             if (req.query.sku) filters.sku = req.query.sku;
             if (req.query.variant_id) filters.variant_id = req.query.variant_id;
+            if (req.query.movement_type) filters.movement_type = req.query.movement_type; // 'in' or 'out'
+            if (req.query.source) filters.source = req.query.source; // 'purchase', 'sales', 'adjustment', 'return', 'opening_stock'
             if (req.query.date) filters.date = req.query.date; // DATEONLY format: 2025-12-05
 
             // apply named periods and asOf via shared helper
