@@ -22,7 +22,7 @@ const CustomerController = {
       if (!uniqueId) return res.status(400).json({ success: false, message: 'uniqueId is required' });
       const result = await CustomerRepo.getByUniqueId(uniqueId);
       if (!result.success) return res.status(500).json(result);
-      return res.status(200).json({ success: true, available: result.available });
+      return res.status(200).json({ success: true, available: result.available, result });
     } catch (err) {
       return res.status(500).json({ success: false, message: err.message });
     }

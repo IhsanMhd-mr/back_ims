@@ -9,10 +9,14 @@ export const Material = sequelize.define(
             autoIncrement: true,
             primaryKey: true,
         },
-        mat_id: {
+        sku: {
             type: DataTypes.STRING,
-            allowNull: true,
-            unique: true
+            allowNull: false,
+        },
+        variant_id: {
+            type: DataTypes.STRING,
+            allowNull: false,
+            unique: true,
         },
         name: {
             type: DataTypes.STRING,
@@ -22,26 +26,28 @@ export const Material = sequelize.define(
             type: DataTypes.STRING,
             allowNull: true,
         },
-        price: {
-            type: DataTypes.STRING,
+        cost: {
+            type: DataTypes.DECIMAL(12, 2),
             allowNull: false,
+            defaultValue: 0
+        },
+        mrp: {
+            type: DataTypes.DECIMAL(12, 2),
+            allowNull: false,
+            defaultValue: 0
         },
         date: {
-            type: DataTypes.STRING,
-            allowNull: false,
+            type: DataTypes.DATEONLY,
+            allowNull: true
         },
-        qty: {
-            type: DataTypes.INTEGER,
+        quantity: {
+            type: DataTypes.FLOAT,
             allowNull: false,
+            defaultValue: 0
         },
         unit: {
             type: DataTypes.STRING,
             allowNull: false,
-        },
-        approver_id: {
-            type: DataTypes.STRING,
-            allowNull: true,
-            defaultValue: true
         },
         tags: {
             type: DataTypes.STRING,
@@ -50,7 +56,10 @@ export const Material = sequelize.define(
         status: {
             type: DataTypes.STRING,
             allowNull: false,
-            defaultValue: 'active' // active, inactive, deleted, pending, etc.
+            defaultValue: 'ACTIVE',
+            validate: {
+                isIn: [['ACTIVE', 'INACTIVE', 'DELETED', 'PENDING']]
+            }
         },
         createdBy: {
             type: DataTypes.INTEGER,

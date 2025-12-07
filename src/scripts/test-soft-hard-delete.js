@@ -20,7 +20,7 @@ async function run() {
       customer_name: 'SoftDelete Tester',
       subtotal: 10.0,
       total_amount: 10.0,
-      status: 'pending'
+      status: 'PENDING'
     });
     console.log('Created bill id=', bill.id);
 

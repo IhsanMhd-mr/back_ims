@@ -27,22 +27,25 @@ export const Product = sequelize.define(
             allowNull: true,
         },
         cost: {
-            type: DataTypes.STRING,
+            type: DataTypes.DECIMAL(12, 2),
             allowNull: false,
+            defaultValue: 0
         },
         mrp: {
-            type: DataTypes.STRING,
+            type: DataTypes.DECIMAL(12, 2),
             allowNull: false,
+            defaultValue: 0
         },
         date: {
-            type: DataTypes.STRING,
-            allowNull: false,
+            type: DataTypes.DATEONLY,
+            allowNull: true
         },
         // Note: using `field: 'weight'` keeps compatibility with existing DB column name
         // until you run the migration to rename the column to `quantity`.
         quantity: {
-            type: DataTypes.INTEGER,
-            allowNull: false
+            type: DataTypes.FLOAT,
+            allowNull: false,
+            defaultValue: 0
         },
         unit: {
             type: DataTypes.STRING,
@@ -55,7 +58,10 @@ export const Product = sequelize.define(
         status: {
             type: DataTypes.STRING,
             allowNull: false,
-            defaultValue: 'active' // active, inactive, deleted, pending, etc.
+            defaultValue: 'ACTIVE',
+            validate: {
+                isIn: [['ACTIVE', 'INACTIVE', 'DELETED', 'PENDING']]
+            }
         },
         createdBy: {
             type: DataTypes.INTEGER,

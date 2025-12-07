@@ -14,6 +14,15 @@ export const Customer = sequelize.define(
       allowNull: false,
       unique: true,
     },
+    type: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      defaultValue: 'customer',
+      validate: {
+        isIn: [['supplier', 'customer', 'both']]
+      },
+      comment: 'Type of contact: supplier (vendor), customer, or both'
+    },
     company_name: {
       type: DataTypes.STRING,
       allowNull: true,
@@ -33,7 +42,7 @@ export const Customer = sequelize.define(
     status: {
       type: DataTypes.STRING,
       allowNull: false,
-      defaultValue: 'active'
+      defaultValue: 'ACTIVE'
     },
     createdBy: {
       type: DataTypes.INTEGER,

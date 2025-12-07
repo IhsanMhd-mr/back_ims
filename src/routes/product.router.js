@@ -10,6 +10,7 @@ router.get('/list', ProductController.getSummaries);
 router.get('/grouped_list', ProductController.listSkus);
 router.get('/sku/:sku', ProductController.getSkuVariants);
 router.get('/search', ProductController.search);
+router.get('/variant/:variant_id', ProductController.getByVariantId);
 router.get('/get/:id', ProductController.getById);
 router.put('/put/:id', ProductController.update); // update updated by
 router.patch('/status/:id/:params', ProductController.statusUpdate);//update status

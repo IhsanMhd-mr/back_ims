@@ -7,15 +7,39 @@ export const Stock = sequelize.define('Stock', {
         primaryKey: true,
         autoIncrement: true
     },
-    product_id: {
+    item_type: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        validate: {
+            isIn: [['MATERIAL', 'PRODUCT']]
+        }
+    },
+    fk_id: {
         type: DataTypes.INTEGER,
         allowNull: false
+    },
+    sku: {
+        type: DataTypes.STRING,
+        allowNull: false
+    },
+    variant_id: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
+    item_name: {
+        type: DataTypes.TEXT,
+        allowNull: true
+    },
+    batch_number: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        unique: false // Allow duplicates; batch_number is for grouping, not unique constraint
     },
     description: {
         type: DataTypes.TEXT,
         allowNull: true
     },
-    price: {
+    cost: {
         type: DataTypes.DECIMAL(12, 2),
         allowNull: false,
         defaultValue: 0
@@ -37,6 +61,24 @@ export const Stock = sequelize.define('Stock', {
         type: DataTypes.STRING,
         allowNull: true
     },
+    movement_type: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        defaultValue: 'IN',
+        validate: {
+            isIn: [['IN', 'OUT']]
+        },
+        comment: 'Tracks whether stock is incoming or outgoing'
+    },
+    source: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        defaultValue: 'ADJUSTMENT',
+        validate: {
+            isIn: [['PURCHASE','PRODUCTION', 'SALES', 'ADJUSTMENT', 'RETURN', 'OPENING_STOCK', 'CONVERSION']]
+        },
+        comment: 'Identifies the source/reason for the stock movement'
+    },
     approver_id: {
         type: DataTypes.INTEGER,
         allowNull: true
@@ -44,7 +86,10 @@ export const Stock = sequelize.define('Stock', {
     status: {
         type: DataTypes.STRING,
         allowNull: false,
-        defaultValue: 'active' // active, inactive, deleted, pending, etc.
+        defaultValue: 'ACTIVE',
+        validate: {
+            isIn: [['ACTIVE', 'INACTIVE', 'PENDING', 'COMPLETED','REJECTED', 'DELETED']]
+        }
     },
     createdBy: {
         type: DataTypes.INTEGER,
@@ -59,7 +104,7 @@ export const Stock = sequelize.define('Stock', {
         allowNull: true
     }
 }, {
-    tableName: 'stocks',
+    tableName: 'stock_records',
     timestamps: true,
     paranoid: true // enables soft-deletes via deletedAt
 });

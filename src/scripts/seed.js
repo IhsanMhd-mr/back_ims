@@ -68,7 +68,7 @@ const seed = async () => {
         customer_name: 'Seed Customer',
         date: new Date(),
         total_amount: 0,
-        status: 'pending'
+        status: 'PENDING'
       });
 
       await ItemSale.bulkCreate([
