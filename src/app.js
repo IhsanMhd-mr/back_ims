@@ -18,6 +18,7 @@ import conversionRouter from "./routes/conversion.router.js";
 import requestLogger from './middlewares/request.logger.js';
 import idDisplayer from './middlewares/id.displayer.js';
 import errorLogger from './middlewares/error.logger.js';
+import cacheMiddleware from './middlewares/cache.middleware.js';
 import './models/associations.js';
 
 
@@ -127,6 +128,9 @@ const initializeServer = async () => {
 
 
 
+
+        // Global cache middleware for GET endpoints (caches responses)
+        app.use(cacheMiddleware);
 
         // Routes
         app.use("/users", userRouter);
