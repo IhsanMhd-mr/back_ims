@@ -1,5 +1,7 @@
 import express from 'express';
 import StockController from '../controllers/stock.controller.js';
+import StockValueController from '../controllers/stockValue.controller.js';
+import StockSummaryController from '../controllers/stockSummary.controller.js';
 
 const router = express.Router();
 // --- Ledger (stock transactions) -----------------------------------------
@@ -34,6 +36,21 @@ router.post('/milestone', StockController.createMilestone);
 router.get('/milestone/:year/:month', StockController.getMilestone);
 // last three months view: snapshot before window + ledger records for window
 router.get('/last_three_months', StockController.lastThreeMonths);
+
+// --- Monthly summaries CRUD (light admin endpoints)
+router.get('/monthly-summaries', StockSummaryController.list);
+router.get('/monthly-summaries/:id', StockSummaryController.getById);
+router.post('/monthly-summaries', StockSummaryController.create);
+router.patch('/monthly-summaries/:id', StockSummaryController.update);
+router.post('/monthly-summaries/bulk-upsert', StockSummaryController.bulkUpsert);
+router.post('/monthly-summaries/generate-from-last-month', StockSummaryController.generateFromLastMonth);
+router.post('/monthly-summaries/generate-daily', StockSummaryController.generateDailyForMonth);
+
+// --- Current stock monetary values (per-item) ---------------------------
+router.get('/current-values', StockValueController.list);
+router.get('/current-values/:item_type/:fk_id', StockValueController.getByItem);
+router.post('/current-values/upsert', StockValueController.upsert);
+router.post('/current-values/refresh', StockValueController.refresh);
 
 // --- Admin / maintenance -----------------------------------------------
 router.put('/put/:id', StockController.update); // update updated by
