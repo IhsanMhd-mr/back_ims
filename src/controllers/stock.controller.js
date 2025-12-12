@@ -1,5 +1,5 @@
 import StockRepo from '../repositories/stock.repository.js';
-import { Stock } from '../models/stock.model.js';
+import { Stock, refreshCurrentValueBulk } from '../models/stock.model.js';
 import { Op } from 'sequelize';
 import { ItemSale } from '../models/item-sale.model.js';
 
@@ -125,6 +125,10 @@ const StockController = {
 
                 const created = await Stock.bulkCreate(prepared, { transaction: t, returning: true });
                 await t.commit();
+                
+                // Refresh current values for all affected items
+                await refreshCurrentValueBulk(created).catch(err => console.error('Refresh error:', err));
+                
                 return res.status(201).json({ success: true, data: created, message: `${created.length} stock records created` });
             } catch (innerErr) {
                 await t.rollback();
@@ -263,6 +267,16 @@ const StockController = {
             const page = Number(req.query.page) || 1;
             const limit = Number(req.query.limit) || 20;
             const result = await StockRepo.searchStocks({ searchTerm, page, limit });
+            if (result.success) return res.status(200).json(result);
+            return res.status(400).json(result);
+        } catch (err) {
+            return res.status(500).json({ success: false, message: err.message });
+        }
+    },
+
+    getSKUlist: async (req, res) => {
+        try {          
+            const result = await StockRepo.getSKUlist();
             if (result.success) return res.status(200).json(result);
             return res.status(400).json(result);
         } catch (err) {

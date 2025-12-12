@@ -39,6 +39,7 @@ router.get('/last_three_months', StockController.lastThreeMonths);
 
 // --- Monthly summaries CRUD (light admin endpoints)
 router.get('/monthly-summaries', StockSummaryController.list);
+router.get('/monthly-summaries/:year/:month', StockSummaryController.list);
 router.get('/monthly-summaries/:id', StockSummaryController.getById);
 router.post('/monthly-summaries', StockSummaryController.create);
 router.patch('/monthly-summaries/:id', StockSummaryController.update);
@@ -51,6 +52,9 @@ router.get('/current-values', StockValueController.list);
 router.get('/current-values/:item_type/:fk_id', StockValueController.getByItem);
 router.post('/current-values/upsert', StockValueController.upsert);
 router.post('/current-values/refresh', StockValueController.refresh);
+
+// --- SKU List for search & selection components ----------------------------------
+router.get('/getSKUlist', StockController.getSKUlist);
 
 // --- Admin / maintenance -----------------------------------------------
 router.put('/put/:id', StockController.update); // update updated by

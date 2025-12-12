@@ -1,4 +1,4 @@
-import { Stock } from '../models/stock.model.js';
+import { Stock, refreshCurrentValue, refreshCurrentValueBulk } from '../models/stock.model.js';
 import { StockAdjustment } from '../models/stock-adjustment.model.js';
 import { Op } from 'sequelize';
 
@@ -6,6 +6,8 @@ const StockRepo = {
     createStockEntry: async (stockData) => {
         try {
             const newStock = await Stock.create(stockData);
+            // Refresh current value for this item
+            await refreshCurrentValue(newStock).catch(err => console.error('Refresh error:', err));
             return { success: true, data: newStock, message: 'Stock created successfully' };
         } catch (error) {
             return { success: false, message: error.message };
@@ -17,10 +19,12 @@ const StockRepo = {
             if (!Array.isArray(stockDataArray) || !stockDataArray.length) {
                 return { success: false, message: 'stockDataArray required' };
             }
-            
+
             console.log(`[StockRepo] Bulk create: ${stockDataArray.length} records`);
             const createdStocks = await Stock.bulkCreate(stockDataArray, { returning: true, validate: true });
             console.log(`[StockRepo] ✅ Success: ${createdStocks.length} created`);
+            // Refresh current values for all affected items
+            await refreshCurrentValueBulk(createdStocks).catch(err => console.error('Refresh error:', err));
             return { success: true, data: createdStocks, message: `${createdStocks.length} stock records created` };
         } catch (error) {
             console.error(`[StockRepo] Bulk create ERROR:`);
@@ -36,14 +40,14 @@ const StockRepo = {
         try {
             const offset = (page - 1) * limit;
             const where = { ...filters };
-            
+
             // Support date field filters (DATEONLY: 2025-12-05)
             if (filters.date) {
                 where.date = filters.date;
                 delete where.date; // remove from where, then add back to avoid duplication
                 where.date = filters.date;
             }
-            
+
             // Support date range filters passed as start_date / end_date (ISO strings or DATEONLY)
             if (filters.start_date || filters.end_date) {
                 const dateCond = {};
@@ -163,6 +167,30 @@ const StockRepo = {
         }
     },
 
+
+    getSKUlist: async () => {
+        try {
+            const data = await Stock.findAll({
+                attributes: [
+                    'sku',
+                    'item_type',
+                    'item_name'
+                ],
+                group: ['sku', 'item_type', 'item_name']
+            });
+
+            return {
+                success: true,
+                data
+            };
+        } catch (error) {
+            return {
+                success: false,
+                message: error.message
+            };
+        }
+    }
+    ,
     searchStocks: async ({ searchTerm = '', page = 1, limit = 20 } = {}) => {
         try {
             const offset = (page - 1) * limit;
@@ -418,7 +446,7 @@ const StockRepo = {
             // compute start date 3 months ago (beginning of day)
             const start = new Date(now);
             start.setMonth(start.getMonth() - 3);
-            start.setHours(0,0,0,0);
+            start.setHours(0, 0, 0, 0);
 
             const ym = (start.getFullYear() * 100) + (start.getMonth() + 1);
 

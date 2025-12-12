@@ -4,11 +4,14 @@ import sequelize from '../config/db.js';
 
 const StockSummaryController = {
   // GET /stock/monthly-summaries?year=2025&month=11
+  // GET /stock/monthly-summaries/:year/:month
   list: async (req, res) => {
     try {
       const where = {};
-      const year = req.query.year ? Number(req.query.year) : null;
-      const month = req.query.month ? Number(req.query.month) : null;
+      // Support both query params and route params
+      const year = req.params.year ? Number(req.params.year) : (req.query.year ? Number(req.query.year) : null);
+      const month = req.params.month ? Number(req.params.month) : (req.query.month ? Number(req.query.month) : null);
+      
       if (year && month) {
         const mm = String(month).padStart(2, '0');
         where.month = `${year}-${mm}-01`;

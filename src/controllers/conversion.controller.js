@@ -1,6 +1,6 @@
 import ConversionRepo from '../repositories/conversion.repository.js';
 import StockRepo from '../repositories/stock.repository.js';
-import { Stock } from '../models/stock.model.js';
+import { Stock, refreshCurrentValueBulk } from '../models/stock.model.js';
 import { Op } from 'sequelize';
 
 /**
@@ -327,6 +327,10 @@ const ConversionController = {
 
       // Commit transaction
       await t.commit();
+
+      // Refresh current values for all affected items (inputs and outputs)
+      const allMovements = [...outMovements, ...inMovements];
+      await refreshCurrentValueBulk(allMovements).catch(err => console.error('Refresh error:', err));
 
       return res.status(201).json({
         success: true,
