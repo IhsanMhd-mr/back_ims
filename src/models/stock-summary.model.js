@@ -5,8 +5,8 @@ export const StockMonthlySummary = sequelize.define(
   'StockMonthlySummary',
   {
     id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
-    // store month as DATEONLY pointing to the first day of month (YYYY-MM-DD)
-    month: { type: DataTypes.DATEONLY, allowNull: false },
+    // store date as DATEONLY pointing to the first day of month (YYYY-MM-DD)
+    date: { type: DataTypes.DATEONLY, allowNull: false },
     item_type: { type: DataTypes.STRING, allowNull: false }, // 'MATERIAL' | 'PRODUCT'
     fk_id: { type: DataTypes.INTEGER, allowNull: false }, // material_id or product_id
     sku: { type: DataTypes.STRING, allowNull: true },

@@ -189,6 +189,129 @@ const StockRepo = {
                 message: error.message
             };
         }
+    },
+
+    // Get grouped SKU list for summary with aggregated stock quantities
+    getSKUlistForSummary: async ({ itemType = null, source = null, movement_type = null, year = null, month = null } = {}) => {
+        try {
+            const where = {};
+            if (itemType) where.item_type = itemType;
+            if (source) where.source = source;
+            if (movement_type) where.movement_type = movement_type;
+
+            // Date filtering
+            if (year || month) {
+                const sequelize = Stock.sequelize;
+                const yearCond = year ? sequelize.where(sequelize.fn('EXTRACT', sequelize.literal('YEAR FROM date')), Op.eq, year) : null;
+                const monthCond = month ? sequelize.where(sequelize.fn('EXTRACT', sequelize.literal('MONTH FROM date')), Op.eq, month) : null;
+                const dateConds = [yearCond, monthCond].filter(Boolean);
+                if (dateConds.length > 0) {
+                    where[Op.and] = dateConds;
+                }
+            }
+
+            // Get unique SKUs only (one row per SKU, aggregated across sources/movements)
+            const records = await Stock.findAll({
+                attributes: [
+                    'sku',
+                    [Stock.sequelize.fn('MIN', Stock.sequelize.col('item_type')), 'item_type'],
+                    [Stock.sequelize.fn('MIN', Stock.sequelize.col('item_name')), 'item_name'],
+                    [Stock.sequelize.fn('COUNT', Stock.sequelize.col('id')), 'transaction_count'],
+                    [Stock.sequelize.fn('SUM', Stock.sequelize.col('qty')), 'total_quantity'],
+                    [Stock.sequelize.fn('AVG', Stock.sequelize.col('cost')), 'avg_cost']
+                ],
+                where,
+                group: ['sku'],
+                raw: true,
+                subQuery: false,
+                order: [[Stock.sequelize.literal('transaction_count'), 'DESC']]
+            });
+
+            return {
+                success: true,
+                data: records,
+                meta: {
+                    total: records.length,
+                    filters: { itemType, source, movement_type, year, month }
+                }
+            };
+        } catch (error) {
+            console.error('[StockRepo] getSKUlistForSummary ERROR:', error.message);
+            return {
+                success: false,
+                message: error.message
+            };
+        }
+    },
+
+    // Get all variants (fk_id + details) for a grouped SKU
+    getVariantsByGroupedSKU: async ({ sku, itemType = null } = {}) => {
+        try {
+            if (!sku) {
+                return { success: false, message: 'SKU is required' };
+            }
+
+            const where = { sku };
+            if (itemType) where.item_type = itemType;
+
+            const variants = await Stock.findAll({
+                attributes: [
+                    'id',
+                    'fk_id',
+                    'sku',
+                    'item_type',
+                    'item_name',
+                    'quantity',
+                    'cost',
+                    'source',
+                    'movement_type',
+                    'status',
+                    'date',
+                    'batch_number'
+                ],
+                where,
+                order: [['createdAt', 'DESC']],
+                raw: true
+            });
+
+            // Group by fk_id to show unique variants
+            const groupedByVariant = {};
+            variants.forEach(v => {
+                if (!groupedByVariant[v.fk_id]) {
+                    groupedByVariant[v.fk_id] = {
+                        fk_id: v.fk_id,
+                        sku: v.sku,
+                        item_type: v.item_type,
+                        item_name: v.item_name,
+                        latest_date: v.date,
+                        latest_status: v.status,
+                        cost: v.cost,
+                        records_count: 0,
+                        latest_batch: v.batch_number
+                    };
+                }
+                groupedByVariant[v.fk_id].records_count += 1;
+            });
+
+            const uniqueVariants = Object.values(groupedByVariant);
+
+            return {
+                success: true,
+                data: uniqueVariants,
+                meta: {
+                    total: uniqueVariants.length,
+                    sku,
+                    itemType,
+                    total_transactions: variants.length
+                }
+            };
+        } catch (error) {
+            console.error('[StockRepo] getVariantsByGroupedSKU ERROR:', error.message);
+            return {
+                success: false,
+                message: error.message
+            };
+        }
     }
     ,
     searchStocks: async ({ searchTerm = '', page = 1, limit = 20 } = {}) => {
@@ -361,10 +484,10 @@ const StockRepo = {
             const [rows] = await Stock.sequelize.query(sql, { replacements: { lastDay: lastDayIso }, type: Stock.sequelize.QueryTypes.SELECT });
 
             // remove existing entries for year/month
-            await Stock.sequelize.models.StockMonthlySummary.destroy({ where: { year: y, month: m } });
+            await Stock.sequelize.models.StockMonthlySummary.destroy({ where: { year: y, date: m } });
 
             // bulk insert snapshot rows
-            const toInsert = rows.map(r => ({ year: y, month: m, product_id: r.product_id, total_qty: Number(r.total_qty || 0), createdBy }));
+            const toInsert = rows.map(r => ({ year: y, date: m, product_id: r.product_id, total_qty: Number(r.total_qty || 0), createdBy }));
             if (toInsert.length > 0) {
                 await Stock.sequelize.models.StockMonthlySummary.bulkCreate(toInsert);
             }
@@ -374,23 +497,163 @@ const StockRepo = {
         }
     },
 
-    // Fetch monthly snapshot rows for a given year/month
-    getMonthlySummary: async ({ year, month } = {}) => {
+    getStockSKURecords: async (where) => {
         try {
-            if (!year || !month) return { success: false, message: 'year and month required' };
-            const rows = await Stock.sequelize.models.StockMonthlySummary.findAll({ where: { year: Number(year), month: Number(month) }, order: [['createdAt', 'DESC']] });
-            return { success: true, data: rows };
+            const { sku, year, month } = where;
+            const filter = { sku: sku };
+            if (year && month) {
+                const startDate = new Date(year, month - 1, 1);
+                const endDate = new Date(year, month, 0);
+                filter.date = {
+                    [Op.between]: [startDate, endDate]
+                };
+            }
+            const records = await Stock.findAll({ where: filter, order: [['date', 'DESC']] });
+            return { success: true, data: records };
         } catch (error) {
             return { success: false, message: error.message };
         }
     },
 
-    // Return the latest snapshot year/month or null
+    // Fetch monthly snapshot rows for a given year/month
+    getMonthlySKUSummary: async (where) => {
+        try {
+            const { sku, year, month } = where;
+            const filter = { sku: sku };
+            if (year && month) {
+                const monthDate = `${year}-${String(month).padStart(2, '0')}-01`;
+                filter.date = monthDate;
+            }
+            const summaries = await Stock.sequelize.models.StockMonthlySummary.findAll({ where: filter, order: [['date', 'DESC']] });
+            return { success: true, data: summaries };
+        } catch (error) {
+            return { success: false, message: error.message };
+        }
+    },
+
+    getStockViewBySku: async ({ sku, start_year, start_month, end_year, end_month }) => {
+        try {
+            console.log('getStockViewBySku Params:<><><><><><><>', { sku, start_year, start_month, end_year, end_month });
+            if (!sku) {
+                return { success: false, message: 'SKU is required' };
+            }
+
+            // Use provided date range, or default to the current month
+            let year = end_year;
+            let month = end_month;
+            const now = new Date();
+            if (!year || !month) {
+                year = now.getFullYear();
+                month = now.getMonth() + 1;
+            }
+
+            // STEP A: Find opening balance from the previous month's summary
+            const prevMonthDate = new Date(year, month - 1, 1);
+            prevMonthDate.setMonth(prevMonthDate.getMonth() - 1);
+            const prevYear = prevMonthDate.getFullYear();
+            const prevMonth = prevMonthDate.getMonth() + 1;
+            const prevMonthDateStr = `${prevYear}-${String(prevMonth).padStart(2, '0')}-01`;
+
+            const openingSummary = await Stock.sequelize.models.StockMonthlySummary.findOne({
+                where: {
+                    sku,
+                    date: prevMonthDateStr
+                }
+            });
+            console.log('Opening Summary------>>>>>>>>>:', openingSummary);
+            let opening_qty = 0;
+            let opening_value = 0;
+            if (openingSummary) {
+                opening_qty = Number(openingSummary.closing_qty) || 0;
+                opening_value = Number(openingSummary.closing_value) || 0;
+            }
+
+            // STEP B: Get movements for the current month
+            const startDate = new Date(year, month - 1, 1);
+            const endDate = new Date(year, month, 1);
+
+            const [results] = await Stock.sequelize.query(
+                `SELECT
+                    COALESCE(SUM(CASE WHEN movement_type = 'IN' THEN qty ELSE 0 END), 0) AS in_qty,
+                    COALESCE(SUM(CASE WHEN movement_type = 'OUT' THEN qty ELSE 0 END), 0) AS out_qty,
+                    COALESCE(SUM(CASE WHEN movement_type = 'IN' THEN (cost * qty) ELSE 0 END), 0) AS in_value,
+                    0 AS out_value
+                FROM stock_records
+                WHERE sku = :sku AND "date" >= :startDate AND "date" < :endDate`,
+                {
+                    replacements: { sku, startDate, endDate },
+                    type: Stock.sequelize.QueryTypes.SELECT
+                }
+            );
+
+            const monthly_movements = results[0] || {};
+            const in_qty = Number(monthly_movements.in_qty) || 0;
+            const out_qty = Number(monthly_movements.out_qty) || 0;
+            const in_value = Number(monthly_movements.in_value) || 0;
+            const out_value = 0; // Always 0, calculated in controller
+
+            // STEP C: Get all transactions for the period for the response
+            const transactions = await Stock.findAll({
+                where: {
+                    sku,
+                    date: { [Op.gte]: startDate, [Op.lt]: endDate }
+                },
+                attributes: ['id', 'date', 'movement_type', 'source', 'qty', 'batch_number', 'cost'],
+                order: [['date', 'ASC']]
+            });
+
+            const closing_qty = opening_qty + in_qty - out_qty;
+            // This closing_value is temporary; the final, correct value is calculated in the controller.
+            const closing_value = opening_value + in_value - out_value;
+
+            // Get item details from the first available source
+            const itemDetails = await Stock.findOne({ where: { sku } }) || await Stock.sequelize.models.StockMonthlySummary.findOne({ where: { sku } });
+
+            const response = {
+                item: {
+                    sku: sku,
+                    item_name: itemDetails?.item_name || null,
+                    unit: itemDetails?.unit || null,
+                    item_type: itemDetails?.item_type || null
+                },
+                period: {
+                    date: `${year}-${String(month).padStart(2, '0')}`
+                },
+                summary: {
+                    opening_qty,
+                    in_qty,
+                    out_qty,
+                    closing_qty,
+                    opening_value,
+                    in_value,
+                    out_value,
+                    closing_value
+                },
+                transactions: transactions.map(t => ({
+                    id: t.id,
+                    date: t.date,
+                    movement_type: t.movement_type,
+                    source: t.source,
+                    qty: t.qty,
+                    batch_number: t.batch_number
+                }))
+            };
+
+            return { success: true, data: response };
+        } catch (error) {
+            console.error('[StockRepo] getStockViewBySku ERROR:', error);
+            return { success: false, message: error.message };
+        }
+    },
+
+    // Return the latest snapshot date or null
     getLatestSnapshotInfo: async () => {
         try {
-            const row = await Stock.sequelize.models.StockMonthlySummary.findOne({ order: [['year', 'DESC'], ['month', 'DESC']] });
+            const row = await Stock.sequelize.models.StockMonthlySummary.findOne({ order: [['date', 'DESC']] });
             if (!row) return { success: true, data: null };
-            return { success: true, data: { year: row.year, month: row.month } };
+            // Extract year and month from date (YYYY-MM-DD format)
+            const dateObj = new Date(row.date);
+            return { success: true, data: { year: dateObj.getFullYear(), date: dateObj.getMonth() + 1, date: row.date } };
         } catch (error) {
             return { success: false, message: error.message };
         }
@@ -400,7 +663,7 @@ const StockRepo = {
     getStockSummaryWithSnapshot: async () => {
         try {
             // find latest snapshot
-            const latest = await Stock.sequelize.models.StockMonthlySummary.findOne({ order: [['year', 'DESC'], ['month', 'DESC']] });
+            const latest = await Stock.sequelize.models.StockMonthlySummary.findOne({ order: [['date', 'DESC']] });
             if (!latest) {
                 // fallback to full aggregation
                 const sql = `SELECT s.product_id, SUM(s.qty) as total_qty FROM stock_records s WHERE s.status = 'ACTIVE' GROUP BY s.product_id`;
@@ -409,8 +672,9 @@ const StockRepo = {
             }
 
             // snapshot exists - compute snapshot date (end of month)
-            const y = latest.year;
-            const m = latest.month; // 1-12 assumed
+            const dateObj = new Date(latest.date);
+            const y = dateObj.getFullYear();
+            const m = dateObj.getMonth() + 1; // 1-12
             const nextMonth = new Date(y, m, 1);
             const snapshotEnd = new Date(nextMonth.getTime() - 1).toISOString();
 
@@ -419,7 +683,7 @@ const StockRepo = {
             const [deltas] = await Stock.sequelize.query(deltaSql, { replacements: { snapshotEnd }, type: Stock.sequelize.QueryTypes.SELECT });
 
             // load snapshot rows
-            const snapshotRows = await Stock.sequelize.models.StockMonthlySummary.findAll({ where: { year: y, month: m }, order: [['createdAt', 'DESC']] });
+            const snapshotRows = await Stock.sequelize.models.StockMonthlySummary.findAll({ where: { date: latest.date }, order: [['createdAt', 'DESC']] });
             const snapshotMap = new Map(snapshotRows.map(r => [r.product_id, Number(r.total_qty || 0)]));
             const deltaMap = new Map(deltas.map(d => [d.product_id, Number(d.delta_qty || 0)]));
 
@@ -450,14 +714,15 @@ const StockRepo = {
 
             const ym = (start.getFullYear() * 100) + (start.getMonth() + 1);
 
-            // find latest snapshot with year/month <= ym
-            const sqlFind = `SELECT year, month FROM stock_monthly_summaries WHERE (year*100 + month) <= :ym ORDER BY year DESC, month DESC LIMIT 1`;
+            // find latest snapshot with date <= ym (convert date to YYYYMM format)
+            const sqlFind = `SELECT date FROM stock_monthly_summaries WHERE (YEAR(date)*100 + MONTH(date)) <= :ym ORDER BY date DESC LIMIT 1`;
             const [found] = await Stock.sequelize.query(sqlFind, { replacements: { ym }, type: Stock.sequelize.QueryTypes.SELECT });
             let snapshotInfo = null;
             let snapshotRows = [];
-            if (found && found.year) {
-                snapshotInfo = { year: Number(found.year), month: Number(found.month) };
-                snapshotRows = await Stock.sequelize.models.StockMonthlySummary.findAll({ where: { year: snapshotInfo.year, month: snapshotInfo.month } });
+            if (found && found.date) {
+                const dateObj = new Date(found.date);
+                snapshotInfo = { year: dateObj.getFullYear(), date: dateObj.getMonth() + 1, date: found.date };
+                snapshotRows = await Stock.sequelize.models.StockMonthlySummary.findAll({ where: { date: found.date } });
             }
 
             // ledger records from start -> now
@@ -478,6 +743,23 @@ const StockRepo = {
             }
             const created = await Stock.bulkCreate(stockDataArray, { returning: true });
             return { success: true, data: created, message: `${created.length} stock records created successfully` };
+        } catch (error) {
+            return { success: false, message: error.message };
+        }
+    },
+
+    // Item Monthly Summary - Grouped by variant/item with monthly data
+    // TODO: Implement specific logic as per requirements
+    getItemMonthlySummary: async ({ year = null, month = null, itemType = null, page = 1, limit = 20 } = {}) => {
+        try {
+            const offset = (page - 1) * limit;
+            // Placeholder implementation - to be completed with specific business logic
+            return {
+                success: true,
+                data: [],
+                meta: { total: 0, page, limit, pages: 0 },
+                message: 'Item monthly summary endpoint (implementation pending)'
+            };
         } catch (error) {
             return { success: false, message: error.message };
         }

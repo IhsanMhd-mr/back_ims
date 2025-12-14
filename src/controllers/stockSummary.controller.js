@@ -1,6 +1,8 @@
 import StockMonthlySummary from '../models/stock-summary.model.js';
 import { Stock } from '../models/stock.model.js';
 import sequelize from '../config/db.js';
+import { Op } from 'sequelize';
+import StockRepo from '../repositories/stock.repository.js';
 
 const StockSummaryController = {
   // GET /stock/monthly-summaries?year=2025&month=11
@@ -11,14 +13,15 @@ const StockSummaryController = {
       // Support both query params and route params
       const year = req.params.year ? Number(req.params.year) : (req.query.year ? Number(req.query.year) : null);
       const month = req.params.month ? Number(req.params.month) : (req.query.month ? Number(req.query.month) : null);
-      
+      const variant_id = req.params.variant_id ? Number(req.params.variant_id) : (req.query.variant_id ? Number(req.query.variant_id) : null);
+
       if (year && month) {
         const mm = String(month).padStart(2, '0');
-        where.month = `${year}-${mm}-01`;
+        where.date = `${year}-${mm}-01`;
       }
       if (req.query.item_type) where.item_type = req.query.item_type;
-      if (req.query.fk_id) where.fk_id = Number(req.query.fk_id);
-      const rows = await StockMonthlySummary.findAll({ where, order: [['month', 'DESC'], ['item_type', 'ASC']] });
+      if (req.query.variant_id) where.variant_id = Number(req.query.variant_id);
+      const rows = await StockMonthlySummary.findAll({ where, order: [['date', 'DESC'], ['item_type', 'ASC']] });
       return res.status(200).json({ success: true, data: rows });
     } catch (err) {
       return res.status(500).json({ success: false, message: err.message });
@@ -37,22 +40,53 @@ const StockSummaryController = {
     }
   },
 
+  // Get monthly summaries by SKU (with optional date range filtering)
+  getBySku: async (req, res) => {
+    try {
+      console.log('GetBySku Called', req.params, req.query);
+      const sku = req.params.sku ? String(req.params.sku).trim() : null;
+      const start_year = req.query.start_year ? Number(req.query.start_year) : null;
+      const start_month = req.query.start_month ? Number(req.query.start_month) : null;
+      const end_year = req.query.end_year ? Number(req.query.end_year) : null;
+      const end_month = req.query.end_month ? Number(req.query.end_month) : null;
+      
+      if (!sku) return res.status(400).json({ success: false, message: 'SKU is required' });
+
+      // Build the date range object for the repository
+      const dateRange = {};
+      if (start_year && start_month) {
+        dateRange.start_year = start_year;
+        dateRange.start_month = start_month;
+      }
+      if (end_year && end_month) {
+        dateRange.end_year = end_year;
+        dateRange.end_month = end_month;
+      }
+
+      const result = await StockRepo.getStockViewBySku({ sku, ...dateRange });
+      console.log('GetBySku [][][][] Result:===>>>>>', result);
+      return res.status(200).json({ success: true, data: result, query: { sku, start_year, start_month, end_year, end_month } });
+    } catch (err) {
+      return res.status(500).json({ success: false, message: err.message });
+    }
+  },
+
   create: async (req, res) => {
     try {
       const payload = req.body || {};
-      // Expect month as YYYY-MM-DD or year+month
-      if (!payload.month && payload.year && payload.month_number) {
+      // Expect date as YYYY-MM-DD or year+month
+      if (!payload.date && payload.year && payload.month_number) {
         const m = String(payload.month_number).padStart(2, '0');
-        payload.month = `${payload.year}-${m}-01`;
+        payload.date = `${payload.year}-${m}-01`;
       }
-      if (!payload.month) return res.status(400).json({ success: false, message: 'month required' });
+      if (!payload.date) return res.status(400).json({ success: false, message: 'date required' });
       const created = await StockMonthlySummary.create(payload);
       return res.status(201).json({ success: true, data: created });
     } catch (err) {
       return res.status(500).json({ success: false, message: err.message });
     }
   }
-,
+  ,
 
   // POST /stock/monthly-summaries/generate-from-last-month
   // Optional body/query: { year, month } to target a specific month
@@ -92,7 +126,7 @@ const StockSummaryController = {
       const groups = await sequelize.query(sql, { replacements: { start: startStr, end: endStr }, type: sequelize.QueryTypes.SELECT });
 
       const results = [];
-      const monthDate = `${year}-${String(month).padStart(2,'0')}-01`;
+      const monthDate = `${year}-${String(month).padStart(2, '0')}-01`;
       for (const g of groups) {
         const opening_qty = Number(g.opening_qty || 0);
         const in_qty = Number(g.in_qty || 0);
@@ -139,7 +173,7 @@ const StockSummaryController = {
       return res.status(500).json({ success: false, message: err.message });
     }
   }
-,
+  ,
 
   // POST /stock/monthly-summaries/generate-daily
   // body/query: { year, month, asOf } - if omitted, defaults to current year/month and today
@@ -189,7 +223,7 @@ const StockSummaryController = {
       const groups = await sequelize.query(sql, { replacements: { start: startStr, end: endStr }, type: sequelize.QueryTypes.SELECT });
 
       const results = [];
-      const monthDate = `${year}-${String(month).padStart(2,'0')}-01`;
+      const monthDate = `${year}-${String(month).padStart(2, '0')}-01`;
       for (const g of groups) {
         const opening_qty = Number(g.opening_qty || 0);
         const in_qty = Number(g.in_qty || 0);
@@ -235,7 +269,7 @@ const StockSummaryController = {
       return res.status(500).json({ success: false, message: err.message });
     }
   }
-,
+  ,
 
   // PATCH /stock/monthly-summaries/:id
   update: async (req, res) => {
@@ -246,7 +280,7 @@ const StockSummaryController = {
       const row = await StockMonthlySummary.findByPk(id);
       if (!row) return res.status(404).json({ success: false, message: 'Not found' });
       // Prevent changing primary identifying fields in an unsafe way; allow updating numeric totals and metadata
-      const allowed = ['opening_qty','in_qty','out_qty','closing_qty','opening_value','in_value','out_value','closing_value','unit','item_name','sku','variant_id','createdBy'];
+      const allowed = ['opening_qty', 'in_qty', 'out_qty', 'closing_qty', 'opening_value', 'in_value', 'out_value', 'closing_value', 'unit', 'item_name', 'sku', 'variant_id', 'createdBy'];
       const updates = {};
       for (const key of allowed) if (Object.prototype.hasOwnProperty.call(payload, key)) updates[key] = payload[key];
       await row.update(updates);

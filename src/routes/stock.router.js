@@ -40,12 +40,17 @@ router.get('/last_three_months', StockController.lastThreeMonths);
 // --- Monthly summaries CRUD (light admin endpoints)
 router.get('/monthly-summaries', StockSummaryController.list);
 router.get('/monthly-summaries/:year/:month', StockSummaryController.list);
+router.get('/monthly-summary/sku/:sku', StockSummaryController.getBySku);
 router.get('/monthly-summaries/:id', StockSummaryController.getById);
 router.post('/monthly-summaries', StockSummaryController.create);
 router.patch('/monthly-summaries/:id', StockSummaryController.update);
 router.post('/monthly-summaries/bulk-upsert', StockSummaryController.bulkUpsert);
 router.post('/monthly-summaries/generate-from-last-month', StockSummaryController.generateFromLastMonth);
 router.post('/monthly-summaries/generate-daily', StockSummaryController.generateDailyForMonth);
+
+// --- Item Monthly Summary (variant-based grouping) ----
+router.get('/item-monthly-summary',StockSummaryController.list);
+// router.get('/item-monthly-summary',StockSummaryController.list, StockController.itemMonthlySummary);
 
 // --- Current stock monetary values (per-item) ---------------------------
 router.get('/current-values', StockValueController.list);
@@ -55,6 +60,10 @@ router.post('/current-values/refresh', StockValueController.refresh);
 
 // --- SKU List for search & selection components ----------------------------------
 router.get('/getSKUlist', StockController.getSKUlist);
+// Stock summary SKU list with aggregated quantities and filtering
+router.get('/skuListForSummary', StockController.getSKUlistForSummary);
+// Get all variants for a grouped SKU to allow selection
+router.get('/variantsByGroupedSku', StockController.getVariantsByGroupedSKU);
 
 // --- Admin / maintenance -----------------------------------------------
 router.put('/put/:id', StockController.update); // update updated by
