@@ -65,7 +65,12 @@ const StockSummaryController = {
 
       const result = await StockRepo.getStockViewBySku({ sku, ...dateRange });
       console.log('GetBySku [][][][] Result:===>>>>>', result);
-      return res.status(200).json({ success: true, data: result, query: { sku, start_year, start_month, end_year, end_month } });
+      // Don't wrap result.data again - repository already returns { success, data }
+      if (result.success) {
+        return res.status(200).json({ success: true, data: result.data, query: { sku, start_year, start_month, end_year, end_month } });
+      } else {
+        return res.status(400).json({ success: false, message: result.message });
+      }
     } catch (err) {
       return res.status(500).json({ success: false, message: err.message });
     }

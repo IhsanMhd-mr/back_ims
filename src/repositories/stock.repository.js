@@ -538,26 +538,16 @@ const StockRepo = {
                 return { success: false, message: 'SKU is required' };
             }
 
-            // Use provided date range, or default to the current month
-            let year = end_year;
-            let month = end_month;
-            const now = new Date();
-            if (!year || !month) {
-                year = now.getFullYear();
-                month = now.getMonth() + 1;
-            }
+            const startDate = new Date(start_year, start_month - 1, 1);
+            const endDate = new Date(end_year, end_month, 1);
 
             // STEP A: Find opening balance from the previous month's summary
-            const prevMonthDate = new Date(year, month - 1, 1);
-            prevMonthDate.setMonth(prevMonthDate.getMonth() - 1);
-            const prevYear = prevMonthDate.getFullYear();
-            const prevMonth = prevMonthDate.getMonth() + 1;
-            const prevMonthDateStr = `${prevYear}-${String(prevMonth).padStart(2, '0')}-01`;
-
+            
             const openingSummary = await Stock.sequelize.models.StockMonthlySummary.findOne({
                 where: {
                     sku,
-                    date: prevMonthDateStr
+                    date: { [Op.lt]: startDate }
+
                 }
             });
             console.log('Opening Summary------>>>>>>>>>:', openingSummary);
@@ -567,47 +557,51 @@ const StockRepo = {
                 opening_qty = Number(openingSummary.closing_qty) || 0;
                 opening_value = Number(openingSummary.closing_value) || 0;
             }
-
+            console.log('Opening Qty & Value------>>>>>>>>>:', opening_qty, opening_value);
             // STEP B: Get movements for the current month
-            const startDate = new Date(year, month - 1, 1);
-            const endDate = new Date(year, month, 1);
 
-            const [results] = await Stock.sequelize.query(
-                `SELECT
-                    COALESCE(SUM(CASE WHEN movement_type = 'IN' THEN qty ELSE 0 END), 0) AS in_qty,
-                    COALESCE(SUM(CASE WHEN movement_type = 'OUT' THEN qty ELSE 0 END), 0) AS out_qty,
-                    COALESCE(SUM(CASE WHEN movement_type = 'IN' THEN (cost * qty) ELSE 0 END), 0) AS in_value,
-                    0 AS out_value
-                FROM stock_records
-                WHERE sku = :sku AND "date" >= :startDate AND "date" < :endDate`,
-                {
-                    replacements: { sku, startDate, endDate },
-                    type: Stock.sequelize.QueryTypes.SELECT
-                }
-            );
 
-            const monthly_movements = results[0] || {};
-            const in_qty = Number(monthly_movements.in_qty) || 0;
-            const out_qty = Number(monthly_movements.out_qty) || 0;
-            const in_value = Number(monthly_movements.in_value) || 0;
-            const out_value = 0; // Always 0, calculated in controller
 
-            // STEP C: Get all transactions for the period for the response
+
+
             const transactions = await Stock.findAll({
                 where: {
                     sku,
                     date: { [Op.gte]: startDate, [Op.lt]: endDate }
                 },
                 attributes: ['id', 'date', 'movement_type', 'source', 'qty', 'batch_number', 'cost'],
-                order: [['date', 'ASC']]
+                order: [['date', 'desc'], ['id', 'desc']]
             });
 
-            const closing_qty = opening_qty + in_qty - out_qty;
-            // This closing_value is temporary; the final, correct value is calculated in the controller.
-            const closing_value = opening_value + in_value - out_value;
 
             // Get item details from the first available source
             const itemDetails = await Stock.findOne({ where: { sku } }) || await Stock.sequelize.models.StockMonthlySummary.findOne({ where: { sku } });
+
+            const transactionsList = [];
+
+                        // Add opening balance as first transaction
+                        if (opening_qty !== 0 || opening_value !== 0) {
+                            transactionsList.push({
+                                // id: openingSummary ? openingSummary.id : null||'00',
+                                id: parseInt('00'),
+                                date: new Date(startDate.getFullYear(), startDate.getMonth(), 0).toISOString().split('T')[0], // last day of previous month
+                                movement_type: 'IN',
+                                source: 'opening_balance',
+                                qty: openingSummary.closing_qty, //balance of the previous month
+                                batch_number: openingSummary ? `stock_summary-${openingSummary.id}` : null
+                            });
+                        }
+
+            // Add actual transactions
+            transactionsList.push(...transactions.map(t => ({
+                id: t.id,
+                date: t.date,
+                movement_type: t.movement_type,
+                source: t.source,
+                qty: t.qty,
+                batch_number: t.batch_number
+            })));
+            // STEP C: Get all transactions for the period for the response
 
             const response = {
                 item: {
@@ -617,26 +611,20 @@ const StockRepo = {
                     item_type: itemDetails?.item_type || null
                 },
                 period: {
-                    date: `${year}-${String(month).padStart(2, '0')}`
+                    startDate: startDate.toISOString().split('T')[0],
+                    endDate: endDate.toISOString().split('T')[0]
                 },
-                summary: {
-                    opening_qty,
-                    in_qty,
-                    out_qty,
-                    closing_qty,
-                    opening_value,
-                    in_value,
-                    out_value,
-                    closing_value
-                },
-                transactions: transactions.map(t => ({
-                    id: t.id,
-                    date: t.date,
-                    movement_type: t.movement_type,
-                    source: t.source,
-                    qty: t.qty,
-                    batch_number: t.batch_number
-                }))
+                transactions: transactionsList,
+                // summary: {
+                //     opening_qty,
+                //     in_qty,
+                //     out_qty,
+                //     closing_qty,
+                //     opening_value,
+                //     in_value,
+                //     out_value,
+                //     closing_value
+                // }
             };
 
             return { success: true, data: response };
