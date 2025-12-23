@@ -1,0 +1,955 @@
+{
+  "info": {
+    "name": "IMS - Complete API Collection",
+    "description": "Comprehensive Postman collection for Inventory Management System (IMS) with all CRUD operations for every model",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0",
+    "date": "2025-12-24"
+  },
+  "item": [
+    {
+      "name": "🏢 Products",
+      "item": [
+        {
+          "name": "CREATE - Add Product",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/product/add",
+              "host": ["{{base_url}}"],
+              "path": ["product", "add"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sku\": \"PROD-001\",\n  \"variant_id\": \"VAR-001\",\n  \"item_name\": \"Wireless Mouse\",\n  \"item_type\": \"PRODUCT\",\n  \"category\": \"Electronics\",\n  \"description\": \"Bluetooth wireless mouse\",\n  \"unit\": \"pcs\",\n  \"hsn_code\": \"84713070\",\n  \"price\": 500,\n  \"cost\": 250,\n  \"tax\": 18,\n  \"unit_weight\": 0.1,\n  \"quantity\": 100\n}"
+            }
+          }
+        },
+        {
+          "name": "READ - Get All Products",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/product/getAll?page=1&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["product", "getAll"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "READ - Get Product by ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/product/get/1",
+              "host": ["{{base_url}}"],
+              "path": ["product", "get", "1"]
+            }
+          }
+        },
+        {
+          "name": "READ - Get by SKU",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/product/sku/PROD-001",
+              "host": ["{{base_url}}"],
+              "path": ["product", "sku", "PROD-001"]
+            }
+          }
+        },
+        {
+          "name": "READ - Get by Variant ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/product/variant/VAR-001",
+              "host": ["{{base_url}}"],
+              "path": ["product", "variant", "VAR-001"]
+            }
+          }
+        },
+        {
+          "name": "READ - Search Products",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/product/search?search=mouse&page=1&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["product", "search"],
+              "query": [
+                { "key": "search", "value": "mouse" },
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "READ - List Summaries",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/product/list?page=1&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["product", "list"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "READ - List SKUs (Grouped)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/product/grouped_list",
+              "host": ["{{base_url}}"],
+              "path": ["product", "grouped_list"]
+            }
+          }
+        },
+        {
+          "name": "UPDATE - Update Product",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/product/put/1",
+              "host": ["{{base_url}}"],
+              "path": ["product", "put", "1"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"price\": 550,\n  \"cost\": 270,\n  \"quantity\": 120\n}"
+            }
+          }
+        },
+        {
+          "name": "UPDATE - Update Status",
+          "request": {
+            "method": "PATCH",
+            "url": {
+              "raw": "{{base_url}}/product/status/1/ACTIVE",
+              "host": ["{{base_url}}"],
+              "path": ["product", "status", "1", "ACTIVE"]
+            }
+          }
+        },
+        {
+          "name": "DELETE - Soft Delete (Mark as Deleted)",
+          "request": {
+            "method": "PATCH",
+            "url": {
+              "raw": "{{base_url}}/product/remove/1",
+              "host": ["{{base_url}}"],
+              "path": ["product", "remove", "1"]
+            }
+          }
+        },
+        {
+          "name": "DELETE - Hard Delete (Admin)",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/product/admin_delete/1",
+              "host": ["{{base_url}}"],
+              "path": ["product", "admin_delete", "1"]
+            }
+          }
+        },
+        {
+          "name": "CLONE - Clone Product with Price",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/product/clone",
+              "host": ["{{base_url}}"],
+              "path": ["product", "clone"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"source_id\": 1,\n  \"new_sku\": \"PROD-002\",\n  \"new_variant_id\": \"VAR-002\",\n  \"new_price\": 600\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📦 Materials",
+      "item": [
+        {
+          "name": "CREATE - Add Material",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/material/add",
+              "host": ["{{base_url}}"],
+              "path": ["material", "add"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sku\": \"MAT-001\",\n  \"variant_id\": \"MAT-VAR-001\",\n  \"item_name\": \"Steel Sheet\",\n  \"item_type\": \"MATERIAL\",\n  \"category\": \"Raw Materials\",\n  \"description\": \"High-grade steel sheet\",\n  \"unit\": \"kg\",\n  \"hsn_code\": \"72104000\",\n  \"price\": 150,\n  \"cost\": 100,\n  \"tax\": 5,\n  \"quantity\": 500\n}"
+            }
+          }
+        },
+        {
+          "name": "READ - Get All Materials",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/material/getAll?page=1&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["material", "getAll"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "READ - Get Material by ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/material/get/1",
+              "host": ["{{base_url}}"],
+              "path": ["material", "get", "1"]
+            }
+          }
+        },
+        {
+          "name": "READ - Get by SKU",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/material/sku/MAT-001",
+              "host": ["{{base_url}}"],
+              "path": ["material", "sku", "MAT-001"]
+            }
+          }
+        },
+        {
+          "name": "UPDATE - Update Material",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/material/put/1",
+              "host": ["{{base_url}}"],
+              "path": ["material", "put", "1"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"price\": 160,\n  \"cost\": 110\n}"
+            }
+          }
+        },
+        {
+          "name": "DELETE - Soft Delete Material",
+          "request": {
+            "method": "PATCH",
+            "url": {
+              "raw": "{{base_url}}/material/remove/1",
+              "host": ["{{base_url}}"],
+              "path": ["material", "remove", "1"]
+            }
+          }
+        },
+        {
+          "name": "DELETE - Hard Delete Material",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/material/admin_delete/1",
+              "host": ["{{base_url}}"],
+              "path": ["material", "admin_delete", "1"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📊 Stock Management",
+      "item": [
+        {
+          "name": "CREATE - Add Stock",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/stock/add",
+              "host": ["{{base_url}}"],
+              "path": ["stock", "add"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"item_type\": \"PRODUCT\",\n  \"fk_id\": 1,\n  \"sku\": \"PROD-001\",\n  \"item_name\": \"Wireless Mouse\",\n  \"qty\": 50,\n  \"cost\": 250,\n  \"date\": \"2025-12-24\",\n  \"movement_type\": \"IN\",\n  \"source\": \"PURCHASE\",\n  \"batch_number\": \"BATCH-DEC-001\",\n  \"status\": \"COMPLETED\"\n}"
+            }
+          }
+        },
+        {
+          "name": "CREATE - Bulk Add Stock",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/stock/bulk",
+              "host": ["{{base_url}}"],
+              "path": ["stock", "bulk"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  {\n    \"item_type\": \"PRODUCT\",\n    \"fk_id\": 1,\n    \"sku\": \"PROD-001\",\n    \"qty\": 50,\n    \"cost\": 250,\n    \"date\": \"2025-12-24\",\n    \"movement_type\": \"IN\",\n    \"source\": \"PURCHASE\"\n  },\n  {\n    \"item_type\": \"MATERIAL\",\n    \"fk_id\": 2,\n    \"sku\": \"MAT-001\",\n    \"qty\": 100,\n    \"cost\": 100,\n    \"date\": \"2025-12-24\",\n    \"movement_type\": \"IN\",\n    \"source\": \"PURCHASE\"\n  }\n]"
+            }
+          }
+        },
+        {
+          "name": "READ - Get All Stock",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/stock/getAll?page=1&limit=50",
+              "host": ["{{base_url}}"],
+              "path": ["stock", "getAll"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "50" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "READ - Get Stock by ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/stock/get/1",
+              "host": ["{{base_url}}"],
+              "path": ["stock", "get", "1"]
+            }
+          }
+        },
+        {
+          "name": "READ - Get Stock by Period",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/stock/period?period=this_month",
+              "host": ["{{base_url}}"],
+              "path": ["stock", "period"],
+              "query": [
+                { "key": "period", "value": "this_month" },
+                { "key": "asOf", "value": "2025-12-24" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "READ - Get SKU List",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/stock/skus",
+              "host": ["{{base_url}}"],
+              "path": ["stock", "skus"]
+            }
+          }
+        },
+        {
+          "name": "READ - Get Statuses",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/stock/statuses",
+              "host": ["{{base_url}}"],
+              "path": ["stock", "statuses"]
+            }
+          }
+        },
+        {
+          "name": "READ - Search Stock",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/stock/search?search=mouse&page=1&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["stock", "search"],
+              "query": [
+                { "key": "search", "value": "mouse" },
+                { "key": "page", "value": "1" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "ACTION - Adjust Stock",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/stock/adjust",
+              "host": ["{{base_url}}"],
+              "path": ["stock", "adjust"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fk_id\": 1,\n  \"sku\": \"PROD-001\",\n  \"qty\": -10,\n  \"note\": \"Inventory adjustment\",\n  \"movement_type\": \"OUT\",\n  \"source\": \"ADJUSTMENT\"\n}"
+            }
+          }
+        },
+        {
+          "name": "ACTION - Convert Materials to Products",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/stock/convert",
+              "host": ["{{base_url}}"],
+              "path": ["stock", "convert"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"materials\": [\n    { \"sku\": \"MAT-001\", \"qty\": 10 },\n    { \"sku\": \"MAT-002\", \"qty\": 5 }\n  ],\n  \"product_sku\": \"PROD-001\",\n  \"produced_qty\": 8\n}"
+            }
+          }
+        },
+        {
+          "name": "ACTION - Record Sale",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/stock/sell",
+              "host": ["{{base_url}}"],
+              "path": ["stock", "sell"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    { \"sku\": \"PROD-001\", \"qty\": 5 },\n    { \"sku\": \"PROD-002\", \"qty\": 3 }\n  ]\n}"
+            }
+          }
+        },
+        {
+          "name": "READ - Monthly Summary",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/stock/monthly-summary/sku/PROD-001?start_year=2025&start_month=10&end_year=2025&end_month=12",
+              "host": ["{{base_url}}"],
+              "path": ["stock", "monthly-summary", "sku", "PROD-001"],
+              "query": [
+                { "key": "start_year", "value": "2025" },
+                { "key": "start_month", "value": "10" },
+                { "key": "end_year", "value": "2025" },
+                { "key": "end_month", "value": "12" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "READ - List Monthly Summaries",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/stock/monthly-summaries?year=2025&month=12",
+              "host": ["{{base_url}}"],
+              "path": ["stock", "monthly-summaries"],
+              "query": [
+                { "key": "year", "value": "2025" },
+                { "key": "month", "value": "12" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "CREATE - Generate Monthly Summary",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/stock/monthly-summaries/generate-from-last-month",
+              "host": ["{{base_url}}"],
+              "path": ["stock", "monthly-summaries", "generate-from-last-month"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"year\": 2025,\n  \"month\": 12\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "💰 Bills & Invoices",
+      "item": [
+        {
+          "name": "CREATE - Add Bill",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/bill/add",
+              "host": ["{{base_url}}"],
+              "path": ["bill", "add"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bill_number\": \"BILL-20251224-001\",\n  \"customer_name\": \"ABC Corporation\",\n  \"date\": \"2025-12-24\",\n  \"customer_id\": 1,\n  \"subtotal\": 10000,\n  \"discount_percent\": 5,\n  \"total_amount\": 9500,\n  \"status\": \"PENDING\",\n  \"items\": [\n    {\n      \"product_id\": 1,\n      \"quantity\": 5,\n      \"price\": 2000,\n      \"item_total\": 10000\n    }\n  ]\n}"
+            }
+          }
+        },
+        {
+          "name": "READ - Get All Bills",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/bill/getAll?page=1&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["bill", "getAll"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "READ - Get Bill by ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/bill/get/1",
+              "host": ["{{base_url}}"],
+              "path": ["bill", "get", "1"]
+            }
+          }
+        },
+        {
+          "name": "READ - Get Bill by Number",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/bill/getByNumber/BILL-20251224-001",
+              "host": ["{{base_url}}"],
+              "path": ["bill", "getByNumber", "BILL-20251224-001"]
+            }
+          }
+        },
+        {
+          "name": "UPDATE - Update Bill",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/bill/put/1",
+              "host": ["{{base_url}}"],
+              "path": ["bill", "put", "1"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subtotal\": 11000,\n  \"discount_percent\": 10,\n  \"total_amount\": 9900\n}"
+            }
+          }
+        },
+        {
+          "name": "UPDATE - Update Bill Status",
+          "request": {
+            "method": "PATCH",
+            "url": {
+              "raw": "{{base_url}}/bill/status_handle/1/COMPLETED",
+              "host": ["{{base_url}}"],
+              "path": ["bill", "status_handle", "1", "COMPLETED"]
+            }
+          }
+        },
+        {
+          "name": "DELETE - Delete Bill",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/bill/admin_delete/1",
+              "host": ["{{base_url}}"],
+              "path": ["bill", "admin_delete", "1"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "👥 Customers",
+      "item": [
+        {
+          "name": "CREATE - Add Customer",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/customer/add",
+              "host": ["{{base_url}}"],
+              "path": ["customer", "add"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"ABC Corporation\",\n  \"uniqueId\": \"CUST-001\",\n  \"email\": \"contact@abc.com\",\n  \"phone\": \"+91-9876543210\",\n  \"address\": \"123 Business Street, City\",\n  \"city\": \"Mumbai\",\n  \"state\": \"Maharashtra\",\n  \"pincode\": \"400001\",\n  \"country\": \"India\",\n  \"gst_number\": \"27AABCT1234H1Z0\"\n}"
+            }
+          }
+        },
+        {
+          "name": "READ - Get All Customers",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/customer/getAll?page=1&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["customer", "getAll"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "READ - Get Customer by ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/customer/get/1",
+              "host": ["{{base_url}}"],
+              "path": ["customer", "get", "1"]
+            }
+          }
+        },
+        {
+          "name": "READ - Check Unique ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/customer/checkUnique/CUST-001",
+              "host": ["{{base_url}}"],
+              "path": ["customer", "checkUnique", "CUST-001"]
+            }
+          }
+        },
+        {
+          "name": "UPDATE - Update Customer",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/customer/put/1",
+              "host": ["{{base_url}}"],
+              "path": ["customer", "put", "1"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"newemail@abc.com\",\n  \"phone\": \"+91-9876543211\"\n}"
+            }
+          }
+        },
+        {
+          "name": "DELETE - Delete Customer",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/customer/delete/1",
+              "host": ["{{base_url}}"],
+              "path": ["customer", "delete", "1"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🛍️ Sales",
+      "item": [
+        {
+          "name": "CREATE - Create Sale Order",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/sale/add",
+              "host": ["{{base_url}}"],
+              "path": ["sale", "add"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bill_number\": \"SALE-20251224-001\",\n  \"customer_name\": \"XYZ Industries\",\n  \"date\": \"2025-12-24\",\n  \"customer_id\": 2,\n  \"subtotal\": 15000,\n  \"discount_percent\": 8,\n  \"total_amount\": 13800,\n  \"status\": \"PENDING\",\n  \"items\": [\n    {\n      \"product_id\": 1,\n      \"quantity\": 10,\n      \"price\": 1500\n    }\n  ]\n}"
+            }
+          }
+        },
+        {
+          "name": "READ - Get All Sales",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/sale/getAll?page=1&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["sale", "getAll"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "READ - Get Sale by ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/sale/get/1",
+              "host": ["{{base_url}}"],
+              "path": ["sale", "get", "1"]
+            }
+          }
+        },
+        {
+          "name": "UPDATE - Update Sale Order",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/sale/put/1",
+              "host": ["{{base_url}}"],
+              "path": ["sale", "put", "1"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subtotal\": 16000,\n  \"discount_percent\": 10,\n  \"total_amount\": 14400\n}"
+            }
+          }
+        },
+        {
+          "name": "DELETE - Delete Sale Order",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/sale/admin_delete/1",
+              "host": ["{{base_url}}"],
+              "path": ["sale", "admin_delete", "1"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🔄 Conversions",
+      "item": [
+        {
+          "name": "CREATE - Create Conversion Record",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/conversion/add",
+              "host": ["{{base_url}}"],
+              "path": ["conversion", "add"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"source_product_id\": 1,\n  \"target_product_id\": 2,\n  \"conversion_qty\": 100,\n  \"date\": \"2025-12-24\",\n  \"notes\": \"Standard conversion process\",\n  \"status\": \"COMPLETED\"\n}"
+            }
+          }
+        },
+        {
+          "name": "READ - Get All Conversions",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/conversion/getAll?page=1&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["conversion", "getAll"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "READ - Get Conversion by ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/conversion/get/1",
+              "host": ["{{base_url}}"],
+              "path": ["conversion", "get", "1"]
+            }
+          }
+        },
+        {
+          "name": "UPDATE - Update Conversion",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/conversion/put/1",
+              "host": ["{{base_url}}"],
+              "path": ["conversion", "put", "1"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"conversion_qty\": 120,\n  \"notes\": \"Updated conversion quantity\"\n}"
+            }
+          }
+        },
+        {
+          "name": "DELETE - Delete Conversion",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/conversion/delete/1",
+              "host": ["{{base_url}}"],
+              "path": ["conversion", "delete", "1"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "👤 Users",
+      "item": [
+        {
+          "name": "CREATE - Add User",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/user/add",
+              "host": ["{{base_url}}"],
+              "path": ["user", "add"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"john_doe\",\n  \"email\": \"john@example.com\",\n  \"password\": \"SecurePassword123\",\n  \"role\": \"ADMIN\",\n  \"status\": \"ACTIVE\"\n}"
+            }
+          }
+        },
+        {
+          "name": "READ - Get All Users",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/user/getAll?page=1&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["user", "getAll"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "READ - Get User by ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/user/get/1",
+              "host": ["{{base_url}}"],
+              "path": ["user", "get", "1"]
+            }
+          }
+        },
+        {
+          "name": "UPDATE - Update User",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/user/put/1",
+              "host": ["{{base_url}}"],
+              "path": ["user", "put", "1"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"newemail@example.com\",\n  \"role\": \"USER\"\n}"
+            }
+          }
+        },
+        {
+          "name": "DELETE - Delete User",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/user/delete/1",
+              "host": ["{{base_url}}"],
+              "path": ["user", "delete", "1"]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000",
+      "type": "string"
+    }
+  ]
+}
