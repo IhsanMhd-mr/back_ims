@@ -5,16 +5,56 @@ import sequelize from '../config/db.js';
 const ProductRepo = {
     createProductEntry: async (productData) => {
         try {
-            console.log('[ProductRepo] CREATE - Creating product with data:', JSON.stringify(productData, null, 2));
-            // ensure variant_id is set from SKU
-            productData.variant_id = productData.sku;
-            // map incoming frontend `qty` or legacy `weight` to the new `quantity` column
+            console.log('[ProductRepo] CREATE - Input data:', productData);
+
+            // Fetch existing products ordered by SKU (DESC) to get the latest
+            const skuList = await ProductRepo.getSkuGroups({ order: [['sku', 'DESC']] });
+            
+            // Handle empty database - generate initial SKU
+            if (!skuList.success || !skuList.data || skuList.data.length === 0) {
+                const initialSku = 'PR0001';
+                productData.sku = initialSku;
+                productData.variant_id = initialSku;
+                console.log("[ProductRepo] CREATE - No existing products, using initial SKU:", initialSku);
+                
+                // Map incoming frontend `qty` or legacy `weight` to the new `quantity` column
+                if (productData.qty !== undefined && productData.qty !== null) {
+                    productData.quantity = parseInt(productData.qty, 10);
+                } else if (productData.weight !== undefined && productData.weight !== null) {
+                    productData.quantity = parseInt(productData.weight, 10);
+                }
+                
+                const newProduct = await Product.create(productData);
+                console.log('[ProductRepo] CREATE - Product created successfully:', newProduct.id);
+                return { success: true, data: newProduct, message: 'Product created successfully' };
+            }
+
+            // Get the last (highest) SKU and parse it
+            const lastSku = skuList.data[0].sku;
+            console.log("[ProductRepo] CREATE - Last SKU found:", lastSku);
+            
+            const match = lastSku.match(/^([a-zA-Z]+)(\d+)$/);
+            if (!match) {
+                return { success: false, message: `Invalid SKU format: ${lastSku}. Expected format: PROD0001, PROD0002, etc.` };
+            }
+
+            const typeWord = match[1];
+            const skuNumber = match[2];
+            
+            // Increment numeric part
+            let newSkuNumber = parseInt(skuNumber, 10) + 1;
+            let newSku = typeWord + String(newSkuNumber).padStart(4, '0');
+            
+            productData.sku = newSku;
+            productData.variant_id = newSku;
+            console.log("[ProductRepo] CREATE - Generated new SKU:", newSku);
+
+            // Map incoming frontend `qty` or legacy `weight` to the new `quantity` column
             if (productData.qty !== undefined && productData.qty !== null) {
                 productData.quantity = parseInt(productData.qty, 10);
             } else if (productData.weight !== undefined && productData.weight !== null) {
                 productData.quantity = parseInt(productData.weight, 10);
             }
-            console.log('[ProductRepo] CREATE - Creating product with data:', JSON.stringify(productData, null, 2));
             
             const newProduct = await Product.create(productData);
             console.log('[ProductRepo] CREATE - Product created successfully:', newProduct.id);
