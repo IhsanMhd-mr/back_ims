@@ -4,10 +4,13 @@ const CustomerController = {
   create: async (req, res) => {
     try {
       const payload = req.body || {};
-      if (!payload.unique_id) return res.status(400).json({ success: false, message: 'unique_id is required' });
-      const check = await CustomerRepo.getByUniqueId(payload.unique_id);
-      if (!check.success) return res.status(500).json(check);
-      if (!check.available) return res.status(409).json({ success: false, message: 'unique_id already in use' });
+      // If unique_id is provided, check it's available
+      if (payload.unique_id) {
+        const check = await CustomerRepo.getByUniqueId(payload.unique_id);
+        if (!check.success) return res.status(500).json(check);
+        if (!check.available) return res.status(409).json({ success: false, message: 'unique_id already in use' });
+      }
+      // If no unique_id provided, let repository auto-generate it
       const result = await CustomerRepo.createCustomer(payload);
       if (result.success) return res.status(201).json(result);
       return res.status(400).json(result);
@@ -34,6 +37,10 @@ const CustomerController = {
       const limit = Number(req.query.limit) || 20;
       const filters = {};
       if (req.query.status) filters.status = req.query.status;
+      // Map 'vendor' to 'supplier' for database compatibility
+      if (req.query.type) {
+        filters.type = req.query.type === 'vendor' ? 'supplier' : req.query.type;
+      }
       const result = await CustomerRepo.getCustomers({ page, limit, filters });
       if (result.success) return res.status(200).json(result);
       return res.status(400).json(result);

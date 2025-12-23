@@ -35,6 +35,11 @@ export const Customer = sequelize.define(
       type: DataTypes.STRING,
       allowNull: true,
     },
+    address: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      comment: 'Full address of the customer/vendor'
+    },
     remarks: {
       type: DataTypes.TEXT,
       allowNull: true,

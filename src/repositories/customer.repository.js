@@ -5,6 +5,13 @@ const CustomerRepo = {
   createCustomer: async (payload) => {
     try {
       const result = await Customer.create(payload);
+      
+      // Auto-generate unique_id if not provided (just use the ID)
+      if (!payload.unique_id && result.id) {
+        await result.update({ unique_id: String(result.id) });
+        result.unique_id = String(result.id);
+      }
+      
       return { success: true, data: result, message: 'Customer created' };
     } catch (error) {
       return { success: false, message: error?.message || 'Create failed' };
