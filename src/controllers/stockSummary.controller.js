@@ -54,15 +54,15 @@ const StockSummaryController = {
 
       // Build the date range object for the repository
       const dateRange = {};
-      if (start_year && start_month) {
-        dateRange.start_year = start_year;
-        dateRange.start_month = start_month;
-      }
-      if (end_year && end_month) {
-        dateRange.end_year = end_year;
-        dateRange.end_month = end_month;
-      }
+     const now = new Date();
 
+dateRange.start_year  = start_year  ?? now.getFullYear();
+dateRange.start_month = start_month ?? now.getMonth() + 1;
+
+dateRange.end_year  = end_year  ?? now.getFullYear();
+dateRange.end_month = end_month ?? now.getMonth() + 1;
+
+console.log('GetBySku []==[] Params:===>>>>>', { sku, ...dateRange });
       const result = await StockRepo.getStockViewBySku({ sku, ...dateRange });
       console.log('GetBySku [][][][] Result:===>>>>>', result);
       // Don't wrap result.data again - repository already returns { success, data }
