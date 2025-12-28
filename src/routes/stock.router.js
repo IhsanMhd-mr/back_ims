@@ -41,10 +41,12 @@ router.get('/last_three_months', StockController.lastThreeMonths);
 router.get('/monthly-summaries', StockSummaryController.list);
 router.get('/monthly-summaries/:year/:month', StockSummaryController.list);
 
-// router.get('/monthly-summary/sku/:sku', StockSummaryController.getBySku);
-router.get('/monthly-summary/sku/:sku', StockSummaryController.getStackedSku);
+router.get('/monthly-summary/sku/:sku', StockSummaryController.getBySku);
+// router.get('/monthly-summary/sku/:sku', StockSummaryController.getStackedSku);
 // router.get('/monthly-summary/sku_stacked', StockSummaryController.getStackedSku);
 
+// Get stacked summaries for ALL SKUs by item type (materials vs products)
+router.get('/monthly-summary/all-skus', StockSummaryController.getStackedAllSkus);
 
 router.get('/monthly-summaries/:id', StockSummaryController.getById);
 router.post('/monthly-summaries', StockSummaryController.create);

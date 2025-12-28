@@ -635,11 +635,17 @@ const StockRepo = {
     },
 
 
-    getStackedStockView: async ({ start_year, start_month, end_year, end_month }) => {
+    getStackedStockView: async ({ sku = null, start_year, start_month, end_year, end_month }) => {
         try {
-            console.log('getStockViewBySku Params:<><><><><><><>', { start_year, start_month, end_year, end_month });
+            console.log('getStackedStockView Params:<><><><><><><>', { sku, start_year, start_month, end_year, end_month });
             let skuListResult = await StockRepo.getSKUlist();
             let skuList = skuListResult.data;
+            
+            // Filter by SKU if provided
+            if (sku) {
+                skuList = skuList.filter(item => (item.dataValues?.sku || item.sku) === sku);
+            }
+            
             console.log('SKU LIST------>>>>>>>>>:', skuList);
 
             const startDate = new Date(start_year, start_month - 1, 1);
@@ -654,30 +660,32 @@ const StockRepo = {
             let transactionsListStacked = [];
 
             for (const instance of skuList) {
-                const openingSummary = await Stock.sequelize.models.StockMonthlySummary.findAll({
-
+                let sku = instance.dataValues?.sku || instance.sku;
+                
+                const openingSummary = await Stock.sequelize.models.StockMonthlySummary.findOne({
                     where: {
-                        sku: instance.sku,
+                        sku: sku,
                         date: { [Op.lt]: startDate }
-
-                    }
-
+                    },
+                    order: [['date', 'DESC']]
                 });
-                console.log('Opening Summary------>>>>>>>>>:', openingSummary);
-                let sku = instance.sku;
+                
+                console.log(`\n📦 Processing SKU: ${sku}`);
+                console.log('📊 Opening Summary Found:', openingSummary ? `✅ (closing_qty: ${openingSummary.closing_qty}, closing_value: ${openingSummary.closing_value})` : '❌ None');
+                
+                // Reset for each SKU
+                opening_qty = 0;
+                opening_value = 0;
                 if (openingSummary) {
-                    opening_qty = Number(instance.closing_qty) || 0;
-                    opening_value = Number(instance.closing_value) || 0;
+                    opening_qty = Number(openingSummary.closing_qty) || 0;
+                    opening_value = Number(openingSummary.closing_value) || 0;
                 }
 
-                console.log('Opening Qty & Value------>>>>>>>>>:', opening_qty, opening_value);
+                console.log(`💰 Opening Balance: Qty=${opening_qty}, Value=${opening_value}`);
+                
                 // STEP B: Get movements for the current month
 
-
-
-
-
-                const transactions = await Stock.findOne({
+                const transactions = await Stock.findAll({
                     where: {
                         sku,
                         date: { [Op.gte]: startDate, [Op.lt]: endDate }
@@ -686,6 +694,7 @@ const StockRepo = {
                     order: [['date', 'desc'], ['id', 'desc']]
                 });
 
+                console.log(`📋 Transactions Found: ${transactions?.length || 0} records`);
 
                 // Get item details from the first available source
                 const itemDetails = await Stock.findOne({ where: { sku } }) || await Stock.sequelize.models.StockMonthlySummary.findOne({ where: { sku } });
@@ -693,20 +702,21 @@ const StockRepo = {
                 const transactionsList = [];
 
                 // Add opening balance as first transaction
-                if (opening_qty !== 0 || opening_value !== 0) {
+                if (openingSummary && (opening_qty !== 0 || opening_value !== 0)) {
                     transactionsList.push({
-                        // id: openingSummary ? openingSummary.id : null||'00',
-                        id: parseInt('00'),
-                        date: new Date(startDate.getFullYear(), startDate.getMonth(), 0).toISOString().split('T')[0], // last day of previous month
+                        id: 0,
+                        date: new Date(startDate.getFullYear(), startDate.getMonth(), 0).toISOString().split('T')[0],
                         movement_type: 'IN',
                         source: 'opening_balance',
-                        qty: openingSummary.closing_qty, //balance of the previous month
-                        batch_number: openingSummary ? `stock_summary-${openingSummary.id}` : null
+                        qty: opening_qty,
+                        batch_number: `stock_summary-${openingSummary.id}`
                     });
+                    console.log(`  ➕ Added opening balance transaction`);
                 }
 
                 // Add actual transactions
-                transactionsList.push(...transactions.map(t => ({
+                if (Array.isArray(transactions) && transactions.length > 0) {
+                    transactionsList.push(...transactions.map(t => ({
                     id: t.id,
                     date: t.date,
                     movement_type: t.movement_type,
@@ -714,6 +724,11 @@ const StockRepo = {
                     qty: t.qty,
                     batch_number: t.batch_number
                 })));
+                    console.log(`  ➕ Added ${transactions.length} transaction records`);
+                }
+                
+                console.log(`✅ Total transactions for ${sku}: ${transactionsList.length}\n`);
+                
                 // STEP C: Get all transactions for the period for the response
 
                 response = {
@@ -723,33 +738,17 @@ const StockRepo = {
                         unit: itemDetails?.unit || null,
                         item_type: itemDetails?.item_type || null
                     },
-                    period: {
-                        startDate: startDate.toISOString().split('T')[0],
-                        endDate: endDate.toISOString().split('T')[0]
-                    },
-                    transactions: transactionsList,
-                    // summary: {
-                    //     opening_qty,
-                    //     in_qty,
-                    //     out_qty,
-                    //     closing_qty,
-                    //     opening_value,
-                    //     in_value,
-                    //     out_value,
-                    //     closing_value
-                    // }
+                    stock_records: transactionsList,
                 };
 
-                transactionsListStacked.push(...transactionsListStacked.map(t => ({
-                    item: response.item,
-                    transactionsList: response.transactions
-
-
-                })));
+                transactionsListStacked.push(response);
 
 
             }
-            stacked_response = {
+            
+            console.log(`\n🎯 Stacked Response Summary: ${transactionsListStacked.length} SKUs processed`);
+            
+            let stacked_response = {
 
                 period: {
                     startDate: startDate.toISOString().split('T')[0],
@@ -759,7 +758,7 @@ const StockRepo = {
 
             }
 
-            return { success: true, data: response };
+            return { success: true, data: stacked_response };
         } catch (error) {
             console.error('[StockRepo] getStockViewBySku ERROR:', error);
             return { success: false, message: error.message };

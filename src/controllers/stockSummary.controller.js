@@ -85,8 +85,6 @@ const StockSummaryController = {
       const end_year = req.query.end_year ? Number(req.query.end_year) : null;
       const end_month = req.query.end_month ? Number(req.query.end_month) : null;
 
-      if (!sku) return res.status(400).json({ success: false, message: 'SKU is required' });
-
       // Build the date range object for the repository
       const dateRange = {};
       const now = new Date();
@@ -98,6 +96,7 @@ const StockSummaryController = {
       dateRange.end_month = end_month ?? now.getMonth() + 1;
 
       console.log('GetBySku []==[] Params:===>>>>>', { sku, ...dateRange });
+      // Pass sku to indicate single-SKU mode (getStackedStockView supports both)
       const result = await StockRepo.getStackedStockView({ sku, ...dateRange });
       console.log('GetBySku [][][][] Result:===>>>>>', result);
       // Don't wrap result.data again - repository already returns { success, data }
@@ -107,6 +106,47 @@ const StockSummaryController = {
         return res.status(400).json({ success: false, message: result.message });
       }
     } catch (err) {
+      return res.status(500).json({ success: false, message: err.message });
+    }
+  },
+
+  // Get stacked summaries for ALL SKUs - for bulk view
+  getStackedAllSkus: async (req, res) => {
+    try {
+      const start_year = req.query.start_year ? Number(req.query.start_year) : null;
+      const start_month = req.query.start_month ? Number(req.query.start_month) : null;
+      const end_year = req.query.end_year ? Number(req.query.end_year) : null;
+      const end_month = req.query.end_month ? Number(req.query.end_month) : null;
+
+      // Default to current year/month if not provided
+      const now = new Date();
+      const dateRange = {};
+      dateRange.start_year = start_year ?? now.getFullYear();
+      dateRange.start_month = start_month ?? 1;
+      dateRange.end_year = end_year ?? now.getFullYear();
+      dateRange.end_month = end_month ?? now.getMonth() + 1;
+
+      console.log('getStackedAllSkus Params:', dateRange);
+
+      // Call without SKU to get all SKUs
+      const result = await StockRepo.getStackedStockView(dateRange);
+
+      if (result.success) {
+        return res.status(200).json({
+          success: true,
+          data: result.data,
+          query: {
+            start_year: dateRange.start_year,
+            start_month: dateRange.start_month,
+            end_year: dateRange.end_year,
+            end_month: dateRange.end_month
+          }
+        });
+      } else {
+        return res.status(400).json({ success: false, message: result.message });
+      }
+    } catch (err) {
+      console.error('getStackedAllSkus ERROR:', err);
       return res.status(500).json({ success: false, message: err.message });
     }
   },

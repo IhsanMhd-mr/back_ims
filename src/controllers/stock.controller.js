@@ -179,6 +179,7 @@ const StockController = {
             }
             // add more query filters as needed (date, approver_id, etc.)
             const result = await StockRepo.getStocks({ page, limit, filters, order: [['createdAt', 'DESC']] });
+            console.log('StockController.getAll ====>> :', result.data.dataValues);
             if (result.success) return res.status(200).json(result);
             // Log details for debugging when repository returns failure
             console.error('[StockController.getAll] repo returned error:', result.message || result);
