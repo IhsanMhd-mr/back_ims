@@ -542,7 +542,7 @@ const StockRepo = {
             const endDate = new Date(end_year, end_month, 1);
 
             // STEP A: Find opening balance from the previous month's summary
-            
+
             const openingSummary = await Stock.sequelize.models.StockMonthlySummary.findOne({
                 where: {
                     sku,
@@ -579,18 +579,18 @@ const StockRepo = {
 
             const transactionsList = [];
 
-                        // Add opening balance as first transaction
-                        if (opening_qty !== 0 || opening_value !== 0) {
-                            transactionsList.push({
-                                // id: openingSummary ? openingSummary.id : null||'00',
-                                id: parseInt('00'),
-                                date: new Date(startDate.getFullYear(), startDate.getMonth(), 0).toISOString().split('T')[0], // last day of previous month
-                                movement_type: 'IN',
-                                source: 'opening_balance',
-                                qty: openingSummary.closing_qty, //balance of the previous month
-                                batch_number: openingSummary ? `stock_summary-${openingSummary.id}` : null
-                            });
-                        }
+            // Add opening balance as first transaction
+            if (opening_qty !== 0 || opening_value !== 0) {
+                transactionsList.push({
+                    // id: openingSummary ? openingSummary.id : null||'00',
+                    id: parseInt('00'),
+                    date: new Date(startDate.getFullYear(), startDate.getMonth(), 0).toISOString().split('T')[0], // last day of previous month
+                    movement_type: 'IN',
+                    source: 'opening_balance',
+                    qty: openingSummary.closing_qty, //balance of the previous month
+                    batch_number: openingSummary ? `stock_summary-${openingSummary.id}` : null
+                });
+            }
 
             // Add actual transactions
             transactionsList.push(...transactions.map(t => ({
@@ -626,6 +626,138 @@ const StockRepo = {
                 //     closing_value
                 // }
             };
+
+            return { success: true, data: response };
+        } catch (error) {
+            console.error('[StockRepo] getStockViewBySku ERROR:', error);
+            return { success: false, message: error.message };
+        }
+    },
+
+
+    getStackedStockView: async ({ start_year, start_month, end_year, end_month }) => {
+        try {
+            console.log('getStockViewBySku Params:<><><><><><><>', { start_year, start_month, end_year, end_month });
+            let skuListResult = await StockRepo.getSKUlist();
+            let skuList = skuListResult.data;
+            console.log('SKU LIST------>>>>>>>>>:', skuList);
+
+            const startDate = new Date(start_year, start_month - 1, 1);
+            const endDate = new Date(end_year, end_month, 1);
+
+            // STEP A: Find opening balance from the previous month's summary
+
+
+            let opening_qty = 0;
+            let opening_value = 0;
+            let response = {};
+            let transactionsListStacked = [];
+
+            for (const instance of skuList) {
+                const openingSummary = await Stock.sequelize.models.StockMonthlySummary.findAll({
+
+                    where: {
+                        sku: instance.sku,
+                        date: { [Op.lt]: startDate }
+
+                    }
+
+                });
+                console.log('Opening Summary------>>>>>>>>>:', openingSummary);
+                let sku = instance.sku;
+                if (openingSummary) {
+                    opening_qty = Number(instance.closing_qty) || 0;
+                    opening_value = Number(instance.closing_value) || 0;
+                }
+
+                console.log('Opening Qty & Value------>>>>>>>>>:', opening_qty, opening_value);
+                // STEP B: Get movements for the current month
+
+
+
+
+
+                const transactions = await Stock.findOne({
+                    where: {
+                        sku,
+                        date: { [Op.gte]: startDate, [Op.lt]: endDate }
+                    },
+                    attributes: ['id', 'date', 'movement_type', 'source', 'qty', 'batch_number', 'cost'],
+                    order: [['date', 'desc'], ['id', 'desc']]
+                });
+
+
+                // Get item details from the first available source
+                const itemDetails = await Stock.findOne({ where: { sku } }) || await Stock.sequelize.models.StockMonthlySummary.findOne({ where: { sku } });
+
+                const transactionsList = [];
+
+                // Add opening balance as first transaction
+                if (opening_qty !== 0 || opening_value !== 0) {
+                    transactionsList.push({
+                        // id: openingSummary ? openingSummary.id : null||'00',
+                        id: parseInt('00'),
+                        date: new Date(startDate.getFullYear(), startDate.getMonth(), 0).toISOString().split('T')[0], // last day of previous month
+                        movement_type: 'IN',
+                        source: 'opening_balance',
+                        qty: openingSummary.closing_qty, //balance of the previous month
+                        batch_number: openingSummary ? `stock_summary-${openingSummary.id}` : null
+                    });
+                }
+
+                // Add actual transactions
+                transactionsList.push(...transactions.map(t => ({
+                    id: t.id,
+                    date: t.date,
+                    movement_type: t.movement_type,
+                    source: t.source,
+                    qty: t.qty,
+                    batch_number: t.batch_number
+                })));
+                // STEP C: Get all transactions for the period for the response
+
+                response = {
+                    item: {
+                        sku: sku,
+                        item_name: itemDetails?.item_name || null,
+                        unit: itemDetails?.unit || null,
+                        item_type: itemDetails?.item_type || null
+                    },
+                    period: {
+                        startDate: startDate.toISOString().split('T')[0],
+                        endDate: endDate.toISOString().split('T')[0]
+                    },
+                    transactions: transactionsList,
+                    // summary: {
+                    //     opening_qty,
+                    //     in_qty,
+                    //     out_qty,
+                    //     closing_qty,
+                    //     opening_value,
+                    //     in_value,
+                    //     out_value,
+                    //     closing_value
+                    // }
+                };
+
+                transactionsListStacked.push(...transactionsListStacked.map(t => ({
+                    item: response.item,
+                    transactionsList: response.transactions
+
+
+                })));
+
+
+            }
+            stacked_response = {
+
+                period: {
+                    startDate: startDate.toISOString().split('T')[0],
+                    endDate: endDate.toISOString().split('T')[0]
+                },
+                transactions: transactionsListStacked,
+
+            }
 
             return { success: true, data: response };
         } catch (error) {

@@ -40,7 +40,12 @@ router.get('/last_three_months', StockController.lastThreeMonths);
 // --- Monthly summaries CRUD (light admin endpoints)
 router.get('/monthly-summaries', StockSummaryController.list);
 router.get('/monthly-summaries/:year/:month', StockSummaryController.list);
-router.get('/monthly-summary/sku/:sku', StockSummaryController.getBySku);
+
+// router.get('/monthly-summary/sku/:sku', StockSummaryController.getBySku);
+router.get('/monthly-summary/sku/:sku', StockSummaryController.getStackedSku);
+// router.get('/monthly-summary/sku_stacked', StockSummaryController.getStackedSku);
+
+
 router.get('/monthly-summaries/:id', StockSummaryController.getById);
 router.post('/monthly-summaries', StockSummaryController.create);
 router.patch('/monthly-summaries/:id', StockSummaryController.update);

@@ -49,20 +49,20 @@ const StockSummaryController = {
       const start_month = req.query.start_month ? Number(req.query.start_month) : null;
       const end_year = req.query.end_year ? Number(req.query.end_year) : null;
       const end_month = req.query.end_month ? Number(req.query.end_month) : null;
-      
+
       if (!sku) return res.status(400).json({ success: false, message: 'SKU is required' });
 
       // Build the date range object for the repository
       const dateRange = {};
-     const now = new Date();
+      const now = new Date();
 
-dateRange.start_year  = start_year  ?? now.getFullYear();
-dateRange.start_month = start_month ?? now.getMonth() + 1;
+      dateRange.start_year = start_year ?? now.getFullYear();
+      dateRange.start_month = start_month ?? now.getMonth() + 1;
 
-dateRange.end_year  = end_year  ?? now.getFullYear();
-dateRange.end_month = end_month ?? now.getMonth() + 1;
+      dateRange.end_year = end_year ?? now.getFullYear();
+      dateRange.end_month = end_month ?? now.getMonth() + 1;
 
-console.log('GetBySku []==[] Params:===>>>>>', { sku, ...dateRange });
+      console.log('GetBySku []==[] Params:===>>>>>', { sku, ...dateRange });
       const result = await StockRepo.getStockViewBySku({ sku, ...dateRange });
       console.log('GetBySku [][][][] Result:===>>>>>', result);
       // Don't wrap result.data again - repository already returns { success, data }
@@ -75,6 +75,42 @@ console.log('GetBySku []==[] Params:===>>>>>', { sku, ...dateRange });
       return res.status(500).json({ success: false, message: err.message });
     }
   },
+
+  getStackedSku: async (req, res) => {
+    try {
+      console.log('GetBySku Called', req.params, req.query);
+      const sku = req.params.sku ? String(req.params.sku).trim() : null;
+      const start_year = req.query.start_year ? Number(req.query.start_year) : null;
+      const start_month = req.query.start_month ? Number(req.query.start_month) : null;
+      const end_year = req.query.end_year ? Number(req.query.end_year) : null;
+      const end_month = req.query.end_month ? Number(req.query.end_month) : null;
+
+      if (!sku) return res.status(400).json({ success: false, message: 'SKU is required' });
+
+      // Build the date range object for the repository
+      const dateRange = {};
+      const now = new Date();
+
+      dateRange.start_year = start_year ?? now.getFullYear();
+      dateRange.start_month = start_month ?? now.getMonth() + 1;
+
+      dateRange.end_year = end_year ?? now.getFullYear();
+      dateRange.end_month = end_month ?? now.getMonth() + 1;
+
+      console.log('GetBySku []==[] Params:===>>>>>', { sku, ...dateRange });
+      const result = await StockRepo.getStackedStockView({ sku, ...dateRange });
+      console.log('GetBySku [][][][] Result:===>>>>>', result);
+      // Don't wrap result.data again - repository already returns { success, data }
+      if (result.success) {
+        return res.status(200).json({ success: true, data: result.data, query: { sku, start_year, start_month, end_year, end_month } });
+      } else {
+        return res.status(400).json({ success: false, message: result.message });
+      }
+    } catch (err) {
+      return res.status(500).json({ success: false, message: err.message });
+    }
+  },
+
 
   create: async (req, res) => {
     try {
