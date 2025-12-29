@@ -12,6 +12,7 @@ import saleRouter from "./routes/sale.router.js";
 import billRouter from "./routes/bill.router.js";
 import customerRouter from "./routes/customer.router.js";
 import conversionRouter from "./routes/conversion.router.js";
+import productionRouter from "./routes/production.router.js";
 // ... other route imports
 
 // Request / tracing middlewares
@@ -141,6 +142,7 @@ const initializeServer = async () => {
         app.use("/bills", billRouter);
         app.use("/customer", customerRouter);
         app.use("/conversion", conversionRouter);
+        app.use("/production", productionRouter);
         // ... other routes
 
     // Error logger middleware: log error with traceId then forward to global handler
