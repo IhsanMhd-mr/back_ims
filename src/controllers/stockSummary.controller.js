@@ -1,4 +1,6 @@
 import StockMonthlySummary from '../models/stock-summary.model.js';
+import StockSummaryRepo from '../repositories/stockSummary.repository.js';
+import StockSummaryService from '../services/stockSummary.service.js';
 import { Stock } from '../models/stock.model.js';
 import sequelize from '../config/db.js';
 import { Op } from 'sequelize';
@@ -155,19 +157,19 @@ const StockSummaryController = {
   create: async (req, res) => {
     try {
       const payload = req.body || {};
-      // Expect date as YYYY-MM-DD or year+month
-      if (!payload.date && payload.year && payload.month_number) {
-        const m = String(payload.month_number).padStart(2, '0');
-        payload.date = `${payload.year}-${m}-01`;
-      }
-      if (!payload.date) return res.status(400).json({ success: false, message: 'date required' });
-      const created = await StockMonthlySummary.create(payload);
+      req.query.date = req.query.date || null;
+      req.query.variant_id = req.query.variant_id || null;
+      req.query.sku = req.query.sku || null;
+      payload.variant_id = payload.variant_id || req.query.variant_id;
+      payload.sku = payload.sku || req.query.sku;
+
+      payload.date = payload.date || req.query.date || new Date().toISOString().split('T')[0];
+      const created = await StockSummaryService.generateMonthlySummary(payload);
       return res.status(201).json({ success: true, data: created });
     } catch (err) {
       return res.status(500).json({ success: false, message: err.message });
     }
-  }
-  ,
+  },
 
   // POST /stock/monthly-summaries/generate-from-last-month
   // Optional body/query: { year, month } to target a specific month
@@ -403,6 +405,67 @@ const StockSummaryController = {
       }
       return res.status(200).json({ success: true, data: results });
     } catch (err) {
+      return res.status(500).json({ success: false, message: err.message });
+    }
+  },
+
+  // API 1: Specific Month Summary - Transaction-based calculation
+  // GET /stock/summary/specific-month?month=11&year=2025&scope=all|sku|variant&sku=PROD0001&variant_id=abc123
+  getSpecificMonthSummary: async (req, res) => {
+    try {
+      const { month, year, scope = 'all', sku, variant_id } = req.query;
+      const result = await StockRepo.getSpecificMonthSummary({ 
+        month: parseInt(month), 
+        year: parseInt(year), 
+        scope, 
+        sku, 
+        variant_id 
+      });
+      if (result.success) return res.status(200).json(result);
+      return res.status(400).json(result);
+    } catch (err) {
+      return res.status(500).json({ success: false, message: err.message });
+    }
+  },
+
+  // API 2: Cumulative Monthly Summary - Transaction-based calculation
+  // GET /stock/summary/cumulative-month?month=11&year=2025&scope=all|sku|variant&sku=PROD0001&variant_id=abc123
+  getCumulativeMonthSummary: async (req, res) => {
+    try {
+      const { month, year, scope = 'all', sku, variant_id } = req.query;
+      const result = await StockRepo.getCumulativeMonthSummary({ 
+        month: parseInt(month), 
+        year: parseInt(year), 
+        scope, 
+        sku, 
+        variant_id 
+      });
+      if (result.success) return res.status(200).json(result);
+      return res.status(400).json(result);
+    } catch (err) {
+      return res.status(500).json({ success: false, message: err.message });
+    }
+  },
+
+  // POST /stock/monthly-summaries/trigger-cron
+  // Manual trigger for monthly summary cron job
+  // Body: { month?, year? } - optional, defaults to previous month
+  triggerCronJob: async (req, res) => {
+    try {
+      const { triggerManualRun } = await import('../tasks/monthlySummaryCron.js');
+      
+      let { month, year } = req.body || {};
+      month = month ? parseInt(month) : null;
+      year = year ? parseInt(year) : null;
+
+      const result = await triggerManualRun({ month, year });
+      
+      if (result.success) {
+        return res.status(200).json(result);
+      }
+      return res.status(400).json(result);
+    } catch (err) {
+      console.error('triggerCronJob ERROR:', err);
       return res.status(500).json({ success: false, message: err.message });
     }
   }

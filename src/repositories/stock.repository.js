@@ -882,7 +882,229 @@ const StockRepo = {
         } catch (error) {
             return { success: false, message: error.message };
         }
+    },
+
+
+    /**
+     * Get monthly totals (IN and OUT qty) for a specific month
+     * Supports: single SKU (all variants), or specific variant
+     */
+    getMonthlyTotals: async ({ sku = null, variant_id = null, month, year }) => {
+        try {
+            const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+            const endDate = new Date(year, month, 0).toISOString().split('T')[0];
+
+            let where = {
+                date: { [Op.gte]: startDate, [Op.lte]: endDate },
+                status: 'ACTIVE',
+                movement_type: { [Op.in]: ['IN', 'OUT'] }
+            };
+
+            if (variant_id) {
+                where.variant_id = variant_id;
+            } else if (sku) {
+                where.sku = sku;
+            }
+
+            const records = await Stock.findAll({ where, raw: true });
+
+            let total_in = 0;
+            let total_out = 0;
+
+            records.forEach(record => {
+                const qty = Number(record.qty || 0);
+                if (record.movement_type === 'IN') {
+                    total_in += qty;
+                } else if (record.movement_type === 'OUT') {
+                    total_out += qty;
+                }
+            });
+
+            return { success: true, data: { total_in, total_out } };
+        } catch (error) {
+            console.error('Error in getMonthlyTotals:', error);
+            return { success: false, message: error.message };
+        }
+    },
+
+    /**
+     * Get opening stock for a period (all transactions BEFORE a specific month)
+     * Calculates: SUM(IN qty) - SUM(OUT qty) before the month
+     */
+    getOpeningStock: async ({ sku = null, variant_id = null, month, year }) => {
+        try {
+            const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+
+            let where = {
+                date: { [Op.lt]: startDate },
+                status: 'ACTIVE',
+                movement_type: { [Op.in]: ['IN', 'OUT'] }
+            };
+
+            if (variant_id) {
+                where.variant_id = variant_id;
+            } else if (sku) {
+                where.sku = sku;
+            }
+
+            const records = await Stock.findAll({ where, raw: true });
+
+            let opening_stock = 0;
+
+            records.forEach(record => {
+                const qty = Number(record.qty || 0);
+                if (record.movement_type === 'IN') {
+                    opening_stock += qty;
+                } else if (record.movement_type === 'OUT') {
+                    opening_stock -= qty;
+                }
+            });
+
+            return { success: true, opening_stock: Math.max(0, opening_stock) };
+        } catch (error) {
+            console.error('Error in getOpeningStock:', error);
+            return { success: false, message: error.message };
+        }
+    },
+
+    /**
+     * Get item details (item_type, fk_id, item_name, unit) from stock records
+     * Used for generating monthly summaries with required fields
+     */
+    getItemDetails: async ({ sku = null, variant_id = null }) => {
+        try {
+            let where = { status: 'ACTIVE' };
+
+            if (variant_id) {
+                where.variant_id = variant_id;
+            } else if (sku) {
+                where.sku = sku;
+            } else {
+                return { success: false, message: 'sku or variant_id is required' };
+            }
+
+            const record = await Stock.findOne({
+                where,
+                attributes: ['item_type', 'fk_id', 'item_name', 'unit', 'sku', 'variant_id'],
+                raw: true
+            });
+
+            if (!record) {
+                return { success: false, message: 'Item not found' };
+            }
+
+            return { success: true, data: record };
+        } catch (error) {
+            console.error('Error in getItemDetails:', error);
+            return { success: false, message: error.message };
+        }
+    },
+
+    /**
+     * Get all distinct SKUs from stock records
+     * SELECT DISTINCT sku FROM stock WHERE status = 'ACTIVE'
+     */
+    getDistinctSKUs: async () => {
+        try {
+            const records = await Stock.findAll({
+                attributes: ['sku'],
+                where: { status: 'ACTIVE', sku: { [Op.ne]: null } },
+                group: ['sku'],
+                raw: true
+            });
+
+            const skus = records.map(r => r.sku);
+            return { success: true, data: skus };
+        } catch (error) {
+            console.error('Error in getDistinctSKUs:', error);
+            return { success: false, message: error.message };
+        }
+    },
+
+    /**
+     * Get all distinct variants for a specific SKU
+     * SELECT DISTINCT variant_id FROM stock WHERE sku = ? AND status = 'ACTIVE'
+     */
+    getVariantsBySKU: async (sku) => {
+        try {
+            const records = await Stock.findAll({
+                attributes: ['variant_id'],
+                where: { sku, status: 'ACTIVE' },
+                group: ['variant_id'],
+                raw: true
+            });
+
+            const variants = records.map(r => r.variant_id);
+            return { success: true, data: variants };
+        } catch (error) {
+            console.error('Error in getVariantsBySKU:', error);
+            return { success: false, message: error.message };
+        }
+    },
+
+    /**
+     * Check if stock records exist for a given item up to a specific date
+     * Used to prevent creating empty summaries for items with no stock history
+     * 
+     * @param {Object} params - { sku, variant_id, beforeDate (optional) }
+     * @returns {Object} - { success, exists, count, firstRecordDate, lastRecordDate }
+     */
+    hasStockRecords: async ({ sku = null, variant_id = null, beforeDate = null }) => {
+        try {
+            let where = { status: 'ACTIVE' };
+
+            if (variant_id) {
+                where.variant_id = variant_id;
+            } else if (sku) {
+                where.sku = sku;
+            } else {
+                return { success: false, message: 'sku or variant_id is required' };
+            }
+
+            // If beforeDate provided, only check records before that date
+            if (beforeDate) {
+                where.date = { [Op.lte]: beforeDate };
+            }
+
+            const count = await Stock.count({ where });
+
+            if (count === 0) {
+                return { 
+                    success: true, 
+                    exists: false, 
+                    count: 0,
+                    message: 'No stock records found for this item'
+                };
+            }
+
+            // Get first and last record dates for more info
+            const firstRecord = await Stock.findOne({
+                where: { ...where, date: beforeDate ? { [Op.lte]: beforeDate } : { [Op.ne]: null } },
+                order: [['date', 'ASC']],
+                attributes: ['date'],
+                raw: true
+            });
+
+            const lastRecord = await Stock.findOne({
+                where: { ...where, date: beforeDate ? { [Op.lte]: beforeDate } : { [Op.ne]: null } },
+                order: [['date', 'DESC']],
+                attributes: ['date'],
+                raw: true
+            });
+
+            return { 
+                success: true, 
+                exists: true, 
+                count,
+                firstRecordDate: firstRecord?.date,
+                lastRecordDate: lastRecord?.date
+            };
+        } catch (error) {
+            console.error('Error in hasStockRecords:', error);
+            return { success: false, message: error.message };
+        }
     }
 };
+
 
 export default StockRepo;

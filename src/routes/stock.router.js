@@ -44,8 +44,9 @@ router.get('/monthly-summaries/:year/:month', StockSummaryController.list);
 router.get('/monthly-summary/sku/:sku', StockSummaryController.getBySku);
 router.get('/monthly-summary/all-skus', StockSummaryController.getStackedAllSkus);
 router.get('/monthly-summaries/:id', StockSummaryController.getById);
-router.post('/monthly-summaries', StockSummaryController.create);
+router.post('/monthly-summaries', StockSummaryController.create); // << -- create
 router.post('/monthly-summaries/generate-from-last-month', StockSummaryController.generateFromLastMonth);
+router.post('/monthly-summaries/trigger-cron', StockSummaryController.triggerCronJob); // Manual cron trigger
 
 // --- Item Monthly Summary (variant-based grouping) ----
 router.get('/item-monthly-summary', StockSummaryController.list);

@@ -23,6 +23,9 @@ import errorLogger from './middlewares/error.logger.js';
 import cacheMiddleware from './middlewares/cache.middleware.js';
 import './models/associations.js';
 
+// Cron Jobs
+import initMonthlySummaryCron from './tasks/monthlySummaryCron.js';
+
 
 
 
@@ -165,6 +168,11 @@ const initializeServer = async () => {
         // Start server
         app.listen(PORT, () => {
             console.log(`Server running on http://localhost:${PORT}`);
+            
+            // Initialize Cron Jobs
+            if (process.env.ENABLE_CRON_JOBS !== 'false') {
+                initMonthlySummaryCron();
+            }
         });
 
     } catch (error) {

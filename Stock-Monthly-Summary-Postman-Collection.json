@@ -1,0 +1,476 @@
+{
+  "info": {
+    "_postman_id": "stock-monthly-summary",
+    "name": "Stock Monthly Summary APIs",
+    "description": "Monthly stock summary generation and retrieval APIs",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Monthly Summary Generation",
+      "item": [
+        {
+          "name": "Generate Monthly Summary - All SKUs",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"all\",\n  \"month\": 11,\n  \"year\": 2025\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/stock/monthly-summaries/generate-from-last-month",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "stock",
+                "monthly-summaries",
+                "generate-from-last-month"
+              ]
+            },
+            "description": "Generate monthly summary for all SKUs with opening stock from previous month"
+          }
+        },
+        {
+          "name": "Generate Monthly Summary - Single SKU",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"sku\",\n  \"sku\": \"PROD0001\",\n  \"month\": 11,\n  \"year\": 2025\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/stock/monthly-summaries",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "stock",
+                "monthly-summaries"
+              ]
+            },
+            "description": "Generate monthly summary for a specific SKU (all variants)"
+          }
+        },
+        {
+          "name": "Generate Monthly Summary - Specific Variant",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"variant\",\n  \"variant_id\": \"PROD0001-BLUE\",\n  \"month\": 11,\n  \"year\": 2025\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/stock/monthly-summaries",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "stock",
+                "monthly-summaries"
+              ]
+            },
+            "description": "Generate monthly summary for a specific variant"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Monthly Summary Retrieval",
+      "item": [
+        {
+          "name": "Get Monthly Summaries - List All",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/stock/monthly-summaries?year=2025&month=11",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "stock",
+                "monthly-summaries"
+              ],
+              "query": [
+                {
+                  "key": "year",
+                  "value": "2025"
+                },
+                {
+                  "key": "month",
+                  "value": "11"
+                }
+              ]
+            },
+            "description": "Retrieve all monthly summaries for a specific year/month"
+          }
+        },
+        {
+          "name": "Get Monthly Summary by SKU",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/stock/monthly-summary/sku/PROD0001?start_year=2025&start_month=10&end_year=2025&end_month=11",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "stock",
+                "monthly-summary",
+                "sku",
+                "PROD0001"
+              ],
+              "query": [
+                {
+                  "key": "start_year",
+                  "value": "2025"
+                },
+                {
+                  "key": "start_month",
+                  "value": "10"
+                },
+                {
+                  "key": "end_year",
+                  "value": "2025"
+                },
+                {
+                  "key": "end_month",
+                  "value": "11"
+                }
+              ]
+            },
+            "description": "Retrieve monthly summary for a specific SKU with date range"
+          }
+        },
+        {
+          "name": "Get Stacked Summary - All SKUs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/stock/monthly-summary/all-skus?start_year=2025&start_month=10&end_year=2025&end_month=11",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "stock",
+                "monthly-summary",
+                "all-skus"
+              ],
+              "query": [
+                {
+                  "key": "start_year",
+                  "value": "2025"
+                },
+                {
+                  "key": "start_month",
+                  "value": "10"
+                },
+                {
+                  "key": "end_year",
+                  "value": "2025"
+                },
+                {
+                  "key": "end_month",
+                  "value": "11"
+                }
+              ]
+            },
+            "description": "Retrieve stacked summaries for all SKUs in a period"
+          }
+        },
+        {
+          "name": "Get Summary by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/stock/monthly-summaries/1",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "stock",
+                "monthly-summaries",
+                "1"
+              ]
+            },
+            "description": "Retrieve specific monthly summary by ID"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Transaction-Based Summary APIs",
+      "item": [
+        {
+          "name": "Get Specific Month Summary - All SKUs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/stock/summary/specific-month?month=11&year=2025&scope=all",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "stock",
+                "summary",
+                "specific-month"
+              ],
+              "query": [
+                {
+                  "key": "month",
+                  "value": "11"
+                },
+                {
+                  "key": "year",
+                  "value": "2025"
+                },
+                {
+                  "key": "scope",
+                  "value": "all"
+                }
+              ]
+            },
+            "description": "Calculate stock summary for ONLY the selected month/year (all SKUs)"
+          }
+        },
+        {
+          "name": "Get Specific Month Summary - Single SKU",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/stock/summary/specific-month?month=11&year=2025&scope=sku&sku=PROD0001",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "stock",
+                "summary",
+                "specific-month"
+              ],
+              "query": [
+                {
+                  "key": "month",
+                  "value": "11"
+                },
+                {
+                  "key": "year",
+                  "value": "2025"
+                },
+                {
+                  "key": "scope",
+                  "value": "sku"
+                },
+                {
+                  "key": "sku",
+                  "value": "PROD0001"
+                }
+              ]
+            },
+            "description": "Calculate stock summary for a specific month and SKU (all variants)"
+          }
+        },
+        {
+          "name": "Get Specific Month Summary - Variant",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/stock/summary/specific-month?month=11&year=2025&scope=variant&variant_id=PROD0001-BLUE",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "stock",
+                "summary",
+                "specific-month"
+              ],
+              "query": [
+                {
+                  "key": "month",
+                  "value": "11"
+                },
+                {
+                  "key": "year",
+                  "value": "2025"
+                },
+                {
+                  "key": "scope",
+                  "value": "variant"
+                },
+                {
+                  "key": "variant_id",
+                  "value": "PROD0001-BLUE"
+                }
+              ]
+            },
+            "description": "Calculate stock summary for a specific month and variant"
+          }
+        },
+        {
+          "name": "Get Cumulative Summary - All SKUs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/stock/summary/cumulative-month?month=11&year=2025&scope=all",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "stock",
+                "summary",
+                "cumulative-month"
+              ],
+              "query": [
+                {
+                  "key": "month",
+                  "value": "11"
+                },
+                {
+                  "key": "year",
+                  "value": "2025"
+                },
+                {
+                  "key": "scope",
+                  "value": "all"
+                }
+              ]
+            },
+            "description": "Calculate cumulative stock summary from beginning until selected month/year (all SKUs)"
+          }
+        },
+        {
+          "name": "Get Cumulative Summary - Single SKU",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/stock/summary/cumulative-month?month=11&year=2025&scope=sku&sku=PROD0001",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "stock",
+                "summary",
+                "cumulative-month"
+              ],
+              "query": [
+                {
+                  "key": "month",
+                  "value": "11"
+                },
+                {
+                  "key": "year",
+                  "value": "2025"
+                },
+                {
+                  "key": "scope",
+                  "value": "sku"
+                },
+                {
+                  "key": "sku",
+                  "value": "PROD0001"
+                }
+              ]
+            },
+            "description": "Calculate cumulative stock summary from beginning until selected month/year for a specific SKU"
+          }
+        },
+        {
+          "name": "Get Cumulative Summary - Variant",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/stock/summary/cumulative-month?month=11&year=2025&scope=variant&variant_id=PROD0001-BLUE",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "stock",
+                "summary",
+                "cumulative-month"
+              ],
+              "query": [
+                {
+                  "key": "month",
+                  "value": "11"
+                },
+                {
+                  "key": "year",
+                  "value": "2025"
+                },
+                {
+                  "key": "scope",
+                  "value": "variant"
+                },
+                {
+                  "key": "variant_id",
+                  "value": "PROD0001-BLUE"
+                }
+              ]
+            },
+            "description": "Calculate cumulative stock summary from beginning until selected month/year for a specific variant"
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    }
+  ]
+}
