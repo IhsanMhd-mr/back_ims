@@ -5,9 +5,46 @@ import sequelize from '../config/db.js';
 const MaterialRepo = {
     createMaterialEntry: async (materialData) => {
         try {
+            console.log("[MaterialRepo] CREATE - Input data:", materialData);
+
+            // Fetch existing materials ordered by SKU (DESC) to get the latest
+            const skuList = await MaterialRepo.getMaterialSkuGroups({ order: [['sku', 'DESC']] });
+            
+            // Handle empty database - generate initial SKU
+            if (!skuList.success || !skuList.data || skuList.data.length === 0) {
+                const initialSku = 'MT0001';
+                materialData.sku = initialSku;
+                materialData.variant_id = initialSku;
+                console.log("[MaterialRepo] CREATE - No existing materials, using initial SKU:", initialSku);
+                
+                const newMaterial = await Material.create(materialData);
+                return { success: true, data: newMaterial, message: 'Material created successfully' };
+            }
+
+            // Get the last (highest) SKU and parse it
+            const lastSku = skuList.data[0].sku;
+            console.log("[MaterialRepo] CREATE - Last SKU found:", lastSku);
+            
+            const match = lastSku.match(/^([a-zA-Z]+)(\d+)$/);
+            if (!match) {
+                return { success: false, message: `Invalid SKU format: ${lastSku}. Expected format: MAT0001, MAT0002, etc.` };
+            }
+
+            const typeWord = match[1];
+            const skuNumber = match[2];
+            
+            // Increment numeric part
+            let newSkuNumber = parseInt(skuNumber, 10) + 1;
+            let newSku = typeWord + String(newSkuNumber).padStart(4, '0');
+            
+            materialData.sku = newSku;
+            materialData.variant_id = newSku;
+            console.log("[MaterialRepo] CREATE - Generated new SKU:", newSku);
+
             const newMaterial = await Material.create(materialData);
             return { success: true, data: newMaterial, message: 'Material created successfully' };
         } catch (error) {
+            console.error("[MaterialRepo] CREATE - Error:", error.message);
             return { success: false, message: error.message };
         }
     },
@@ -135,7 +172,7 @@ const MaterialRepo = {
                 if (filters.name) where.name = { [Op.iLike]: `%${filters.name}%` };
                 if (filters.sku) where.sku = filters.sku;
             }
-            const attributes = ['id','sku','variant_id','name','cost','mrp','quantity','unit','tags','status'];
+            const attributes = ['id', 'sku', 'variant_id', 'name', 'cost', 'mrp', 'quantity', 'unit', 'tags', 'status'];
             const { rows: data, count: total } = await Material.findAndCountAll({ where, order, limit, offset, attributes });
             return {
                 success: true,
@@ -241,9 +278,9 @@ const MaterialRepo = {
             let attemptVariant = newVariantId;
             let attempt = 0;
             while (true) {
-                const exists = await Material.findOne({ 
-                    where: { variant_id: attemptVariant }, 
-                    transaction: t 
+                const exists = await Material.findOne({
+                    where: { variant_id: attemptVariant },
+                    transaction: t
                 });
                 if (!exists) {
                     // found a free variant id
@@ -266,7 +303,7 @@ const MaterialRepo = {
                 let maxNum = 0;
                 const esc = baseSku.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
                 const re = new RegExp(`^${esc}\\*(\\d+)$`, 'i');
-                
+
                 for (const row of candidates) {
                     const vid = String(row.variant_id || '');
                     if (vid.toLowerCase() === baseSku.toLowerCase()) continue; // base exists without suffix

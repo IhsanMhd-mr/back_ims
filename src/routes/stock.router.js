@@ -1,5 +1,7 @@
 import express from 'express';
 import StockController from '../controllers/stock.controller.js';
+import StockValueController from '../controllers/stockValue.controller.js';
+import StockSummaryController from '../controllers/stockSummary.controller.js';
 
 const router = express.Router();
 // --- Ledger (stock transactions) -----------------------------------------
@@ -34,6 +36,42 @@ router.post('/milestone', StockController.createMilestone);
 router.get('/milestone/:year/:month', StockController.getMilestone);
 // last three months view: snapshot before window + ledger records for window
 router.get('/last_three_months', StockController.lastThreeMonths);
+
+// --- Monthly summaries CRUD (light admin endpoints)
+router.get('/monthly-summaries', StockSummaryController.list); // << ----
+router.get('/monthly-summaries/:year/:month', StockSummaryController.list);
+
+router.get('/monthly-summary/sku/:sku', StockSummaryController.getBySku);
+router.get('/monthly-summary/all-skus', StockSummaryController.getStackedAllSkus);
+router.get('/monthly-summaries/:id', StockSummaryController.getById);
+router.post('/monthly-summaries', StockSummaryController.create); // << -- create
+router.post('/monthly-summaries/generate-from-last-month', StockSummaryController.generateFromLastMonth);
+router.post('/monthly-summaries/trigger-cron', StockSummaryController.triggerCronJob); // Manual cron trigger
+
+// --- Item Monthly Summary (variant-based grouping) ----
+router.get('/item-monthly-summary', StockSummaryController.list);
+
+// --- Current stock monetary values (per-item) ---------------------------
+router.get('/current-values', StockValueController.list);
+router.get('/current-values/:item_type/:fk_id', StockValueController.getByItem);
+router.post('/current-values/upsert', StockValueController.upsert);
+router.post('/current-values/refresh', StockValueController.refresh);
+
+// --- SKU List for search & selection components ----------------------------------
+router.get('/getSKUlist', StockController.getSKUlist);
+// Stock summary SKU list with aggregated quantities and filtering
+router.get('/skuListForSummary', StockController.getSKUlistForSummary);
+// Get all variants for a grouped SKU to allow selection
+router.get('/variantsByGroupedSku', StockController.getVariantsByGroupedSKU);
+
+// --- Transaction-Based Monthly Summaries (NEW APIs) ----
+// API 1: Specific Month Summary
+// GET /stock/summary/specific-month?month=11&year=2025&scope=all|sku|variant&sku=PROD0001&variant_id=abc123
+router.get('/summary/specific-month', StockSummaryController.getSpecificMonthSummary);
+
+// API 2: Cumulative Monthly Summary  
+// GET /stock/summary/cumulative-month?month=11&year=2025&scope=all|sku|variant&sku=PROD0001&variant_id=abc123
+router.get('/summary/cumulative-month', StockSummaryController.getCumulativeMonthSummary);
 
 // --- Admin / maintenance -----------------------------------------------
 router.put('/put/:id', StockController.update); // update updated by

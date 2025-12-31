@@ -12,6 +12,8 @@ import saleRouter from "./routes/sale.router.js";
 import billRouter from "./routes/bill.router.js";
 import customerRouter from "./routes/customer.router.js";
 import conversionRouter from "./routes/conversion.router.js";
+import productionRouter from "./routes/production.router.js";
+import stockCurrentRouter from "./routes/stockCurrent.routes.js";
 // ... other route imports
 
 // Request / tracing middlewares
@@ -20,6 +22,9 @@ import idDisplayer from './middlewares/id.displayer.js';
 import errorLogger from './middlewares/error.logger.js';
 import cacheMiddleware from './middlewares/cache.middleware.js';
 import './models/associations.js';
+
+// Cron Jobs
+import initMonthlySummaryCron from './tasks/monthlySummaryCron.js';
 
 
 
@@ -141,6 +146,8 @@ const initializeServer = async () => {
         app.use("/bills", billRouter);
         app.use("/customer", customerRouter);
         app.use("/conversion", conversionRouter);
+        app.use("/production", productionRouter);
+        app.use("/stock-current", stockCurrentRouter);
         // ... other routes
 
     // Error logger middleware: log error with traceId then forward to global handler
@@ -161,6 +168,11 @@ const initializeServer = async () => {
         // Start server
         app.listen(PORT, () => {
             console.log(`Server running on http://localhost:${PORT}`);
+            
+            // Initialize Cron Jobs
+            if (process.env.ENABLE_CRON_JOBS !== 'false') {
+                initMonthlySummaryCron();
+            }
         });
 
     } catch (error) {

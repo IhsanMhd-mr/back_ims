@@ -57,6 +57,7 @@ uploads/*
 !uploads/.gitkeep
 temp/
 cache/
+src/temp/
 
 # Testing
 coverage/

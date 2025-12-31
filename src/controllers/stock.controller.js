@@ -1,5 +1,5 @@
 import StockRepo from '../repositories/stock.repository.js';
-import { Stock } from '../models/stock.model.js';
+import { Stock, refreshCurrentValueBulk } from '../models/stock.model.js';
 import { Op } from 'sequelize';
 import { ItemSale } from '../models/item-sale.model.js';
 
@@ -125,6 +125,10 @@ const StockController = {
 
                 const created = await Stock.bulkCreate(prepared, { transaction: t, returning: true });
                 await t.commit();
+                
+                // Refresh current values for all affected items
+                await refreshCurrentValueBulk(created).catch(err => console.error('Refresh error:', err));
+                
                 return res.status(201).json({ success: true, data: created, message: `${created.length} stock records created` });
             } catch (innerErr) {
                 await t.rollback();
@@ -175,6 +179,7 @@ const StockController = {
             }
             // add more query filters as needed (date, approver_id, etc.)
             const result = await StockRepo.getStocks({ page, limit, filters, order: [['createdAt', 'DESC']] });
+            console.log('StockController.getAll ====>> :', result.data.dataValues);
             if (result.success) return res.status(200).json(result);
             // Log details for debugging when repository returns failure
             console.error('[StockController.getAll] repo returned error:', result.message || result);
@@ -263,6 +268,57 @@ const StockController = {
             const page = Number(req.query.page) || 1;
             const limit = Number(req.query.limit) || 20;
             const result = await StockRepo.searchStocks({ searchTerm, page, limit });
+            if (result.success) return res.status(200).json(result);
+            return res.status(400).json(result);
+        } catch (err) {
+            return res.status(500).json({ success: false, message: err.message });
+        }
+    },
+
+    getSKUlist: async (req, res) => {
+        try {          
+            const result = await StockRepo.getSKUlist();
+            if (result.success) return res.status(200).json(result);
+            return res.status(400).json(result);
+        } catch (err) {
+            return res.status(500).json({ success: false, message: err.message });
+        }
+    },
+
+    // For stock summary page - grouped SKU list with aggregated quantities
+    getSKUlistForSummary: async (req, res) => {
+        try {
+            const itemType = req.query.item_type ? String(req.query.item_type).toUpperCase() : null;
+            const source = req.query.source ? String(req.query.source).toUpperCase() : null;
+            const movement_type = req.query.movement_type ? String(req.query.movement_type).toUpperCase() : null;
+            const year = req.query.year ? Number(req.query.year) : null;
+            const month = req.query.month ? Number(req.query.month) : null;
+
+            const result = await StockRepo.getSKUlistForSummary({
+                itemType,
+                source,
+                movement_type,
+                year,
+                month
+            });
+            if (result.success) return res.status(200).json(result);
+            return res.status(400).json(result);
+        } catch (err) {
+            return res.status(500).json({ success: false, message: err.message });
+        }
+    },
+
+    // Get all variants for a grouped SKU to allow selection
+    getVariantsByGroupedSKU: async (req, res) => {
+        try {
+            const sku = req.query.sku ? String(req.query.sku) : null;
+            const itemType = req.query.item_type ? String(req.query.item_type).toUpperCase() : null;
+            
+            if (!sku) {
+                return res.status(400).json({ success: false, message: 'SKU is required' });
+            }
+
+            const result = await StockRepo.getVariantsByGroupedSKU({ sku, itemType });
             if (result.success) return res.status(200).json(result);
             return res.status(400).json(result);
         } catch (err) {
@@ -537,6 +593,23 @@ const StockController = {
             const result = await StockRepo.hardDeleteStock(id);
             if (result.success) return res.status(200).json(result);
             if (result.message === 'Stock not found') return res.status(404).json(result);
+            return res.status(400).json(result);
+        } catch (err) {
+            return res.status(500).json({ success: false, message: err.message });
+        }
+    },
+
+    // Item Monthly Summary - Grouped by variant/item with monthly breakdown
+    itemMonthlySummary: async (req, res) => {
+        try {
+            const year = req.query.year ? Number(req.query.year) : null;
+            const month = req.query.month ? Number(req.query.month) : null;
+            const itemType = req.query.item_type ? String(req.query.item_type).toUpperCase() : null;
+            const page = Number(req.query.page) || 1;
+            const limit = Number(req.query.limit) || 20;
+
+            const result = await StockRepo.getItemMonthlySummary({ year, month, itemType, page, limit });
+            if (result.success) return res.status(200).json(result);
             return res.status(400).json(result);
         } catch (err) {
             return res.status(500).json({ success: false, message: err.message });
