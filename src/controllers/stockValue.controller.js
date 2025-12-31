@@ -1,4 +1,4 @@
-import StockCurrentValue from '../models/stock-current-value.model.js';
+import { StockCurrentValue } from '../models/stockCurrentValue.model.js';
 import { Stock } from '../models/stock.model.js';
 
 const StockValueController = {

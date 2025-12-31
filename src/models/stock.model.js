@@ -109,7 +109,8 @@ export const Stock = sequelize.define('Stock', {
     paranoid: true // enables soft-deletes via deletedAt
 });
 
-// Utility function to refresh current value for a single item (item_type + fk_id)
+// Utility function to refresh current quantity for a single item (item_type + fk_id)
+// This maintains a running total of quantities, making calculations simpler for various future needs
 export const refreshCurrentValue = async (instanceOrInfo) => {
     try {
         // instanceOrInfo may be a model instance or a simple { item_type, fk_id }
@@ -120,21 +121,64 @@ export const refreshCurrentValue = async (instanceOrInfo) => {
             return;
         }
 
-        // Compute net monetary value: sum(cost * qty) across active records
-        const sql = `SELECT COALESCE(SUM((COALESCE(cost,0) * COALESCE(qty,0))),0) AS current_value
-            FROM stock_records s
-            WHERE s.status = 'ACTIVE' AND s.item_type = :itemType AND s.fk_id = :fk`;
+        // Calculate net quantity: SUM(qty) for IN movements minus SUM(qty) for OUT movements
+        // Only include ACTIVE records to respect soft-deletes and status changes
+        const sql = `
+            SELECT 
+                COALESCE(SUM(CASE WHEN movement_type = 'IN' THEN qty ELSE -qty END), 0) AS current_quantity,
+                MAX(sku) AS sku,
+                MAX(variant_id) AS variant_id,
+                MAX(item_name) AS item_name,
+                MAX(unit) AS unit,
+                MAX(date) AS last_movement_date,
+                (SELECT cost FROM stock_records WHERE item_type = :itemType AND fk_id = :fk AND status = 'ACTIVE' ORDER BY date DESC, id DESC LIMIT 1) AS last_cost
+            FROM stock_records
+            WHERE status = 'ACTIVE' AND item_type = :itemType AND fk_id = :fk
+        `;
         const rows = await sequelize.query(sql, { replacements: { itemType, fk }, type: sequelize.QueryTypes.SELECT });
-        const row = Array.isArray(rows) && rows.length > 0 ? rows[0] : (rows || {});
-        const currentValue = Number((row && (row.current_value !== undefined ? row.current_value : 0)) || 0);
+        const row = Array.isArray(rows) && rows.length > 0 ? rows[0] : {};
+        
+        const currentQuantity = Number(row.current_quantity || 0);
+        const sku = row.sku || null;
+        const variantId = row.variant_id || null;
+        const itemName = row.item_name || null;
+        const unit = row.unit || null;
+        const lastMovementDate = row.last_movement_date || null;
+        const lastCost = row.last_cost || null;
 
         // Upsert into stock_current_values using Postgres ON CONFLICT (item_type, fk_id)
-        const upsertSql = `INSERT INTO stock_current_values (item_type, fk_id, current_value, updated_at, created_at)
-            VALUES (:itemType, :fk, :cv, now(), now())
-            ON CONFLICT (item_type, fk_id) DO UPDATE SET current_value = EXCLUDED.current_value, updated_at = now()`;
-        await sequelize.query(upsertSql, { replacements: { itemType, fk, cv: currentValue } });
+        const upsertSql = `
+            INSERT INTO stock_current_values 
+                (item_type, fk_id, sku, variant_id, item_name, current_quantity, unit, last_movement_date, last_cost, updated_at, created_at)
+            VALUES 
+                (:itemType, :fk, :sku, :variantId, :itemName, :qty, :unit, :lastDate, :lastCost, now(), now())
+            ON CONFLICT (item_type, fk_id) 
+            DO UPDATE SET 
+                sku = EXCLUDED.sku,
+                variant_id = EXCLUDED.variant_id,
+                item_name = EXCLUDED.item_name,
+                current_quantity = EXCLUDED.current_quantity, 
+                unit = EXCLUDED.unit,
+                last_movement_date = EXCLUDED.last_movement_date,
+                last_cost = EXCLUDED.last_cost,
+                updated_at = now()
+        `;
+        await sequelize.query(upsertSql, { 
+            replacements: { 
+                itemType, 
+                fk, 
+                sku, 
+                variantId,
+                itemName, 
+                qty: currentQuantity, 
+                unit, 
+                lastDate: lastMovementDate,
+                lastCost 
+            } 
+        });
         
-        return currentValue;
+        console.log(`[refreshCurrentValue] Updated ${itemType}:${fk} → ${currentQuantity} ${unit || ''}`);
+        return { item_type: itemType, fk_id: fk, current_quantity: currentQuantity, unit, sku, item_name: itemName };
     } catch (err) {
         console.error('[refreshCurrentValue] Error:', err?.message || err);
         throw err;
