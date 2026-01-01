@@ -11,6 +11,7 @@ import stockRouter from "./routes/stock.router.js";
 import saleRouter from "./routes/sale.router.js";
 import billRouter from "./routes/bill.router.js";
 import customerRouter from "./routes/customer.router.js";
+import vendorRouter from "./routes/vendor.router.js";
 import conversionRouter from "./routes/conversion.router.js";
 import productionRouter from "./routes/production.router.js";
 import stockCurrentRouter from "./routes/stockCurrent.routes.js";
@@ -145,6 +146,7 @@ const initializeServer = async () => {
         app.use("/sales", saleRouter);
         app.use("/bills", billRouter);
         app.use("/customer", customerRouter);
+        app.use("/vendor", vendorRouter);
         app.use("/conversion", conversionRouter);
         app.use("/production", productionRouter);
         app.use("/stock-current", stockCurrentRouter);
