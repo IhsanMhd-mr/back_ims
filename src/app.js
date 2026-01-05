@@ -16,6 +16,7 @@ import conversionRouter from "./routes/conversion.router.js";
 import productionRouter from "./routes/production.router.js";
 import stockCurrentRouter from "./routes/stockCurrent.routes.js";
 import printTemplateRouter from "./routes/printTemplate.router.js";
+import inventoryTransactionRouter from "./routes/inventory-transaction.router.js";
 // ... other route imports
 
 // Request / tracing middlewares
@@ -152,6 +153,7 @@ const initializeServer = async () => {
         app.use("/production", productionRouter);
         app.use("/stock-current", stockCurrentRouter);
         app.use("/print", printTemplateRouter);
+        app.use("/inventory-transaction", inventoryTransactionRouter);
         // ... other routes
 
     // Error logger middleware: log error with traceId then forward to global handler

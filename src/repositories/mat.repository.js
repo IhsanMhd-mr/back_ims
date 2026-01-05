@@ -84,6 +84,24 @@ const MaterialRepo = {
         }
     },
 
+    // Find a material by its code (SKU)
+    getByCode: async (code) => {
+        try {
+            if (!code) return { success: false, message: 'code is required' };
+            console.log('[MaterialRepo] GET BY CODE - Fetching material with code:', code);
+            const material = await Material.findOne({ where: { sku: code } });
+            if (!material) {
+                console.log('[MaterialRepo] GET BY CODE - Material not found');
+                return { success: false, message: 'Material not found' };
+            }
+            console.log('[MaterialRepo] GET BY CODE - Material found:', material.id);
+            return { success: true, data: material };
+        } catch (error) {
+            console.error('[MaterialRepo] GET BY CODE - Error:', error.message);
+            return { success: false, message: error.message };
+        }
+    },
+
     updateMaterial: async (id, updateData) => {
         try {
             const material = await Material.findByPk(id);
