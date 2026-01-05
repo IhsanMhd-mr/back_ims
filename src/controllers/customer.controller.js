@@ -48,6 +48,17 @@ const CustomerController = {
     }
   },
 
+  // Simplified getAll for dropdowns - returns just id, company_name, unique_id
+  getAllDropdown: async (req, res) => {
+    try {
+      const result = await CustomerRepo.getAllSimplified();
+      if (result.success) return res.status(200).json(result);
+      return res.status(400).json(result);
+    } catch (err) {
+      return res.status(500).json({ success: false, message: err.message });
+    }
+  },
+
   getById: async (req, res) => {
     try {
       const id = Number(req.params.id);

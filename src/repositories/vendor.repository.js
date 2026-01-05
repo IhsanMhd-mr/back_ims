@@ -53,6 +53,20 @@ const VendorRepo = {
     }
   },
 
+  // Simplified list for dropdowns - returns just essential fields
+  getAllSimplified: async () => {
+    try {
+      const data = await Vendor.findAll({
+        attributes: ['id', 'unique_id', 'company_name', 'contact_no'],
+        where: { status: 'ACTIVE' },
+        order: [['company_name', 'ASC']]
+      });
+      return { success: true, data };
+    } catch (error) {
+      return { success: false, message: error?.message };
+    }
+  },
+
   getById: async (id) => {
     try {
       const result = await Vendor.findByPk(id);

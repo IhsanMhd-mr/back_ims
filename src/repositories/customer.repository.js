@@ -55,6 +55,20 @@ const CustomerRepo = {
     }
   },
 
+  // Simplified list for dropdowns - returns just essential fields
+  getAllSimplified: async () => {
+    try {
+      const data = await Customer.findAll({
+        attributes: ['id', 'unique_id', 'company_name', 'contact_no'],
+        where: { status: 'ACTIVE' },
+        order: [['company_name', 'ASC']]
+      });
+      return { success: true, data };
+    } catch (error) {
+      return { success: false, message: error?.message };
+    }
+  },
+
   getById: async (id) => {
     try {
       const result = await Customer.findByPk(id);
