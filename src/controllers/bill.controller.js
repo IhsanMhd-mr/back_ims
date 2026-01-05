@@ -13,6 +13,7 @@ const BillController = {
   //   products: [ { product_id: 17, quantity: 3 }, ... ]
   // }
   create: async (req, res) => {
+    const startTime = Date.now();
     const t = await sequelize.transaction();
     try {
       const body = req.body || {};
@@ -82,11 +83,13 @@ const BillController = {
       const createdItems = await ItemSale.bulkCreate(createRows, { transaction: t });
 
       await t.commit();
+      const elapsed = Date.now() - startTime;
       console.log('------>>> [BillController] Step 7: Bill and items committed');
       const billJson = billRec.toJSON ? billRec.toJSON() : billRec;
       const itemsJson = Array.isArray(createdItems) ? createdItems.map(i => (i.toJSON ? i.toJSON() : i)) : createdItems;
       const response = { success: true, data: { bill: billJson, items: itemsJson }, message: 'Bill created' };
       console.log('------>>> [BillController] FINAL OUTPUT:', JSON.stringify(response, null, 2));
+      console.log(`------>>> [BillController] DB commit time: ${elapsed} ms`);
       return res.status(201).json(response);
     } catch (err) {
       await t.rollback();
@@ -97,9 +100,12 @@ const BillController = {
 
   getAll: async (req, res) => {
     try {
+      const start = Date.now();
       const page = Number(req.query.page) || 1;
       const limit = Number(req.query.limit) || 50;
       const result = await BillRepo.getAll({ page, limit });
+      const elapsed = Date.now() - start;
+      console.log(`------>>> [BillController] getAll bills DB fetch time: ${elapsed} ms`);
       if (result.success) return res.status(200).json(result);
       return res.status(400).json(result);
     } catch (err) {
@@ -109,9 +115,12 @@ const BillController = {
 
   getById: async (req, res) => {
     try {
+      const start = Date.now();
       const id = Number(req.params.id);
       if (!id) return res.status(400).json({ success: false, message: 'Invalid id' });
       const result = await BillRepo.getById(id);
+      const elapsed = Date.now() - start;
+      console.log(`------>>> [BillController] getById bill DB fetch time: ${elapsed} ms`);
       if (!result.success) return res.status(404).json(result);
       return res.status(200).json(result);
     } catch (err) {
@@ -160,18 +169,22 @@ const BillController = {
       const user_id = Number(req.body?.user_id || req.query?.user_id || 0) || null;
       const updateData = { status, updated_by: user_id };
       const result = await BillRepo.updateBill(id, updateData);
-      
+
       if (result.success && status === 'COMPLETED') {
-        try {
-          const billResult = await BillRepo.getById(id);
-          if (billResult.success && billResult.data?.items?.length > 0) {
-            await StockService.createStockFromBillCompletion(billResult.data, user_id);
+        // Run stock creation in the background, do not await
+        (async () => {
+          try {
+            const billResult = await BillRepo.getById(id);
+            if (billResult.success && billResult.data?.items?.length > 0) {
+              // await StockService.createStockFromBillCompletion(billResult.data, user_id);
+              console.log(`------>>> [BillController] Stock creation completed for Bill ${id}`);
+            }
+          } catch (stockErr) {
+            console.error(`[Bill ${id}] Stock error (background): ${stockErr.message}`);
           }
-        } catch (stockErr) {
-          console.error(`[Bill ${id}] Stock error: ${stockErr.message}`);
-        }
+        })();
       }
-      
+
       if (result.success) return res.status(200).json(result);
       if (result.message === 'Bill not found') return res.status(404).json(result);
       return res.status(400).json(result);
