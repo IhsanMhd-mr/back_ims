@@ -377,6 +377,280 @@ const InventoryTransactionController = {
       });
     }
   },
+
+  // Get approval history for a transaction
+  getApprovalHistory: async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      const transaction = await InventoryTransactionRepo.getById(id);
+      if (!transaction) {
+        return res.status(404).json({
+          success: false,
+          message: 'Transaction not found',
+        });
+      }
+
+      // Get stock records linked to this transaction (by transaction_number)
+      const stockRecords = await StockRepo.find({
+        batch_number: transaction.transaction_number
+      });
+
+      // Build approval history
+      const approvalHistory = [];
+
+      // Add creation record
+      if (transaction.created_by) {
+        approvalHistory.push({
+          action: 'CREATED',
+          user_id: transaction.created_by,
+          action_date: transaction.createdAt,
+          remarks: 'Transaction created in DRAFT status',
+          status: 'DRAFT',
+        });
+      }
+
+      // Add approval record
+      if (transaction.approved_by && transaction.status === 'APPROVED') {
+        approvalHistory.push({
+          action: 'APPROVED',
+          user_id: transaction.approved_by,
+          action_date: transaction.updatedAt,
+          remarks: transaction.approval_remarks || 'Transaction approved',
+          status: 'APPROVED',
+          stock_records_count: stockRecords?.length || 0,
+        });
+      }
+
+      // Add rejection record
+      if (transaction.rejected_by && transaction.status === 'REJECTED') {
+        approvalHistory.push({
+          action: 'REJECTED',
+          user_id: transaction.rejected_by,
+          action_date: transaction.updatedAt,
+          remarks: transaction.approval_remarks || 'Transaction rejected',
+          status: 'REJECTED',
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          transaction_id: id,
+          transaction_number: transaction.transaction_number,
+          current_status: transaction.status,
+          approval_history: approvalHistory,
+        },
+      });
+    } catch (error) {
+      console.error('[InventoryTransactionController] GetApprovalHistory error:', error);
+      return res.status(500).json({
+        success: false,
+        message: error.message || 'Failed to fetch approval history',
+      });
+    }
+  },
+
+  // View extensive approval history details
+  viewApprovalHistory: async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      const transaction = await InventoryTransactionRepo.getById(id);
+      if (!transaction) {
+        return res.status(404).json({
+          success: false,
+          message: 'Transaction not found',
+        });
+      }
+
+      // Get stock records linked to this transaction
+      const stockRecords = await StockRepo.find({
+        batch_number: transaction.transaction_number
+      });
+
+      // Build extensive approval history
+      const approvalDetails = [];
+
+      // Creation detail
+      if (transaction.created_by) {
+        approvalDetails.push({
+          action: 'CREATED',
+          user_id: transaction.created_by,
+          timestamp: transaction.createdAt,
+          status: 'DRAFT',
+          remarks: 'Transaction created in DRAFT status',
+          type: transaction.transaction_type,
+          total_items: transaction.total_items,
+        });
+      }
+
+      // Approval detail
+      if (transaction.approved_by && transaction.status === 'APPROVED') {
+        approvalDetails.push({
+          action: 'APPROVED',
+          user_id: transaction.approved_by,
+          timestamp: transaction.updatedAt,
+          status: 'APPROVED',
+          remarks: transaction.approval_remarks,
+          stock_records_created: stockRecords?.length || 0,
+          stock_details: stockRecords?.slice(0, 10) || [], // First 10 records preview
+        });
+      }
+
+      // Rejection detail
+      if (transaction.rejected_by && transaction.status === 'REJECTED') {
+        approvalDetails.push({
+          action: 'REJECTED',
+          user_id: transaction.rejected_by,
+          timestamp: transaction.updatedAt,
+          status: 'REJECTED',
+          remarks: transaction.approval_remarks,
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          transaction_id: id,
+          transaction_number: transaction.transaction_number,
+          transaction_type: transaction.transaction_type,
+          current_status: transaction.status,
+          transaction_date: transaction.transaction_date,
+          total_items: transaction.total_items,
+          vendor_name: transaction.vendor_name,
+          customer_name: transaction.customer_name,
+          approval_details: approvalDetails,
+          approval_timeline: approvalDetails.map(detail => ({
+            action: detail.action,
+            timestamp: detail.timestamp,
+            status: detail.status,
+          })),
+        },
+      });
+    } catch (error) {
+      console.error('[InventoryTransactionController] ViewApprovalHistory error:', error);
+      return res.status(500).json({
+        success: false,
+        message: error.message || 'Failed to fetch detailed approval history',
+      });
+    }
+  },
+
+  // Get GRN transactions (unapproved + created by user)
+  getGRN: async (req, res) => {
+    try {
+      const { created_by } = req.query;
+      const transactions = await InventoryTransactionRepo.getAll({
+        transaction_type: 'GRN',
+        status: 'DRAFT',
+        ...(created_by && { created_by }),
+      });
+
+      return res.status(200).json({
+        success: true,
+        data: transactions,
+      });
+    } catch (error) {
+      console.error('[InventoryTransactionController] GetGRN error:', error);
+      return res.status(500).json({
+        success: false,
+        message: error.message || 'Failed to fetch GRN transactions',
+      });
+    }
+  },
+
+  // Get Customer Return transactions (unapproved + created by user)
+  getCustomerReturns: async (req, res) => {
+    try {
+      const { created_by } = req.query;
+      const transactions = await InventoryTransactionRepo.getAll({
+        transaction_type: 'CUSTOMER_RETURN',
+        status: 'DRAFT',
+        ...(created_by && { created_by }),
+      });
+
+      return res.status(200).json({
+        success: true,
+        data: transactions,
+      });
+    } catch (error) {
+      console.error('[InventoryTransactionController] GetCustomerReturns error:', error);
+      return res.status(500).json({
+        success: false,
+        message: error.message || 'Failed to fetch customer return transactions',
+      });
+    }
+  },
+
+  // Get Vendor Return transactions (unapproved + created by user)
+  getVendorReturns: async (req, res) => {
+    try {
+      const { created_by } = req.query;
+      const transactions = await InventoryTransactionRepo.getAll({
+        transaction_type: 'VENDOR_RETURN',
+        status: 'DRAFT',
+        ...(created_by && { created_by }),
+      });
+
+      return res.status(200).json({
+        success: true,
+        data: transactions,
+      });
+    } catch (error) {
+      console.error('[InventoryTransactionController] GetVendorReturns error:', error);
+      return res.status(500).json({
+        success: false,
+        message: error.message || 'Failed to fetch vendor return transactions',
+      });
+    }
+  },
+
+  // Get Wastage transactions (unapproved + created by user)
+  getWastage: async (req, res) => {
+    try {
+      const { created_by } = req.query;
+      const transactions = await InventoryTransactionRepo.getAll({
+        transaction_type: 'WASTAGE',
+        status: 'DRAFT',
+        ...(created_by && { created_by }),
+      });
+
+      return res.status(200).json({
+        success: true,
+        data: transactions,
+      });
+    } catch (error) {
+      console.error('[InventoryTransactionController] GetWastage error:', error);
+      return res.status(500).json({
+        success: false,
+        message: error.message || 'Failed to fetch wastage transactions',
+      });
+    }
+  },
+
+  // Get Stock Adjustment transactions (unapproved + created by user)
+  getAdjustments: async (req, res) => {
+    try {
+      const { created_by } = req.query;
+      const transactions = await InventoryTransactionRepo.getAll({
+        transaction_type: 'ADJUSTMENT',
+        status: 'DRAFT',
+        ...(created_by && { created_by }),
+      });
+
+      return res.status(200).json({
+        success: true,
+        data: transactions,
+      });
+    } catch (error) {
+      console.error('[InventoryTransactionController] GetAdjustments error:', error);
+      return res.status(500).json({
+        success: false,
+        message: error.message || 'Failed to fetch adjustment transactions',
+      });
+    }
+  },
 };
 
 export default InventoryTransactionController;
