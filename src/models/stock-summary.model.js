@@ -30,7 +30,13 @@ export const StockMonthlySummary = sequelize.define(
     tableName: 'stock_monthly_summaries',
     underscored: true,
     timestamps: true,
-    paranoid: false
+    paranoid: false,
+    indexes: [
+      { fields: ['item_type', 'fk_id'], name: 'idx_summary_item_type_fk_id' },
+      { fields: ['sku'], name: 'idx_summary_sku' },
+      { fields: ['variant_id'], name: 'idx_summary_variant_id' },
+      { fields: ['date'], name: 'idx_summary_date' }
+    ]
   }
 );
 

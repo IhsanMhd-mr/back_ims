@@ -7,7 +7,7 @@ import { Op } from 'sequelize';
 import StockRepo from '../repositories/stock.repository.js';
 
 const StockSummaryController = {
-  // GET /stock/monthly-summaries?year=2025&month=11
+  // GET /stock/monthly-summaries?year=2025&month=11&sku=SHIRT&variant_id=SHIRT-RED-M
   // GET /stock/monthly-summaries/:year/:month
   list: async (req, res) => {
     try {
@@ -15,15 +15,19 @@ const StockSummaryController = {
       // Support both query params and route params
       const year = req.params.year ? Number(req.params.year) : (req.query.year ? Number(req.query.year) : null);
       const month = req.params.month ? Number(req.params.month) : (req.query.month ? Number(req.query.month) : null);
-      const variant_id = req.params.variant_id ? Number(req.params.variant_id) : (req.query.variant_id ? Number(req.query.variant_id) : null);
 
       if (year && month) {
         const mm = String(month).padStart(2, '0');
         where.date = `${year}-${mm}-01`;
       }
       if (req.query.item_type) where.item_type = req.query.item_type;
-      if (req.query.variant_id) where.variant_id = Number(req.query.variant_id);
-      const rows = await StockMonthlySummary.findAll({ where, order: [['date', 'DESC'], ['item_type', 'ASC']] });
+      if (req.query.sku) where.sku = req.query.sku;
+      if (req.query.variant_id) where.variant_id = req.query.variant_id;
+      
+      const rows = await StockMonthlySummary.findAll({ 
+        where, 
+        order: [['date', 'DESC'], ['item_type', 'ASC'], ['sku', 'ASC']] 
+      });
       return res.status(200).json({ success: true, data: rows });
     } catch (err) {
       return res.status(500).json({ success: false, message: err.message });
