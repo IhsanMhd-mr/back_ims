@@ -172,25 +172,32 @@ const StockSummaryController = {
   },
 
   // POST /stock/monthly-summaries/generate-from-last-month
-  // Optional body/query: { year, month } to target a specific month
+  // Body: { year, month } - generates monthly summary for specified month
   generateFromLastMonth: async (req, res) => {
     try {
       let year = req.body?.year || req.query?.year || null;
       let month = req.body?.month || req.body?.month_number || req.query?.month || req.query?.month_number || null;
+      
+      // Default to previous month if not specified
       const now = new Date();
       if (!year || !month) {
         const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
         year = prev.getFullYear();
         month = prev.getMonth() + 1;
       }
+      
       year = Number(year);
       month = Number(month);
-      if (!year || !month || month < 1 || month > 12) return res.status(400).json({ success: false, message: 'Invalid year/month' });
+      
+      if (!year || !month || month < 1 || month > 12) {
+        return res.status(400).json({ success: false, message: 'Invalid year or month. Must be between 1-12.' });
+      }
 
       const start = new Date(year, month - 1, 1);
       const end = new Date(year, month, 0); // last day of month
       const startStr = start.toISOString().split('T')[0];
       const endStr = end.toISOString().split('T')[0];
+      const monthDate = `${year}-${String(month).padStart(2, '0')}-01`;
 
       // Aggregate per item across stock_records
       const sql = `
@@ -206,57 +213,89 @@ const StockSummaryController = {
         GROUP BY s.item_type, s.fk_id, s.sku, s.variant_id, s.item_name, s.unit
       `;
 
-      const groups = await sequelize.query(sql, { replacements: { start: startStr, end: endStr }, type: sequelize.QueryTypes.SELECT });
+      const groups = await sequelize.query(sql, { 
+        replacements: { start: startStr, end: endStr }, 
+        type: sequelize.QueryTypes.SELECT 
+      });
 
-      const results = [];
-      const monthDate = `${year}-${String(month).padStart(2, '0')}-01`;
+      if (!groups || groups.length === 0) {
+        return res.status(200).json({ 
+          success: true, 
+          month: monthDate, 
+          count: 0, 
+          message: 'No stock records found for this month' 
+        });
+      }
+
+      let created = 0;
+      let updated = 0;
+      const errors = [];
+
       for (const g of groups) {
-        const opening_qty = Number(g.opening_qty || 0);
-        const in_qty = Number(g.in_qty || 0);
-        const out_qty = Number(g.out_qty || 0);
-        const closing_qty = opening_qty + in_qty - out_qty;
+        try {
+          const opening_qty = Number(g.opening_qty || 0);
+          const in_qty = Number(g.in_qty || 0);
+          const out_qty = Number(g.out_qty || 0);
+          const closing_qty = opening_qty + in_qty - out_qty;
 
-        const opening_value = Number(g.opening_value || 0);
-        const in_value = Number(g.in_value || 0);
-        const out_value = Number(g.out_value || 0);
-        const closing_value = opening_value + in_value - out_value;
+          const opening_value = Number(g.opening_value || 0);
+          const in_value = Number(g.in_value || 0);
+          const out_value = Number(g.out_value || 0);
+          const closing_value = opening_value + in_value - out_value;
 
-        const payload = {
-          month: monthDate,
-          item_type: g.item_type,
-          fk_id: Number(g.fk_id),
-          sku: g.sku || null,
-          variant_id: g.variant_id || null,
-          item_name: g.item_name || null,
-          opening_qty,
-          in_qty,
-          out_qty,
-          closing_qty,
-          opening_value,
-          in_value,
-          out_value,
-          closing_value,
-          unit: g.unit || null
-        };
+          const payload = {
+            month: monthDate,
+            item_type: g.item_type,
+            fk_id: Number(g.fk_id),
+            sku: g.sku || null,
+            variant_id: g.variant_id || null,
+            item_name: g.item_name || null,
+            opening_qty,
+            in_qty,
+            out_qty,
+            closing_qty,
+            opening_value,
+            in_value,
+            out_value,
+            closing_value,
+            unit: g.unit || null
+          };
 
-        // Upsert by month + item_type + fk_id
-        const where = { month: monthDate, item_type: payload.item_type, fk_id: payload.fk_id };
-        const existing = await StockMonthlySummary.findOne({ where });
-        if (existing) {
-          await existing.update(payload);
-          results.push({ success: true, action: 'updated', id: existing.id, where });
-        } else {
-          const created = await StockMonthlySummary.create(payload);
-          results.push({ success: true, action: 'created', id: created.id, where });
+          // Upsert: update if exists, create if not
+          const where = { month: monthDate, item_type: payload.item_type, fk_id: payload.fk_id };
+          const [record, isCreated] = await StockMonthlySummary.findOrCreate({ 
+            where, 
+            defaults: payload 
+          });
+
+          if (!isCreated) {
+            await record.update(payload);
+            updated++;
+          } else {
+            created++;
+          }
+        } catch (itemErr) {
+          errors.push({ item: g.sku, error: itemErr.message });
         }
       }
 
-      return res.status(200).json({ success: true, month: monthDate, count: results.length, data: results });
+      return res.status(200).json({ 
+        success: true, 
+        month: monthDate, 
+        period: { start: startStr, end: endStr },
+        created,
+        updated,
+        total: created + updated,
+        errors: errors.length > 0 ? errors : undefined
+      });
     } catch (err) {
-      return res.status(500).json({ success: false, message: err.message });
+      return res.status(500).json({ 
+        success: false, 
+        message: err.message,
+        endpoint: '/stock/monthly-summaries/generate-from-last-month'
+      });
     }
-  }
-  ,
+  },
 
   // POST /stock/monthly-summaries/generate-daily
   // body/query: { year, month, asOf } - if omitted, defaults to current year/month and today
