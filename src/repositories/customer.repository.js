@@ -4,16 +4,32 @@ import sequelize from "../config/db.js";
 const CustomerRepo = {
   createCustomer: async (payload) => {
     try {
-      const result = await Customer.create(payload);
+      console.log('Creating customer with payload - 1.2:', payload);
+      // Ensure company_name present
+      if (!payload.company_name) return { success: false, message: 'company_name is required' };
+      // Auto-generate unique_id if not provided or empty
+       payload.unique_id = 0;
+      let unique_id ;
+
       
-      // Auto-generate unique_id if not provided (just use the ID)
-      if (!payload.unique_id && result.id) {
-        await result.update({ unique_id: String(result.id) });
-        result.unique_id = String(result.id);
-      }
+        const last = await Customer.findOne({ order: [['id', 'DESC']] });
+        const nextId = last ? last.id + 1 : 1;
+        unique_id = `CUST${String(nextId).padStart(4, '0')}`;
       
+      const toCreate = { ...payload, unique_id };
+      const result = await Customer.create(toCreate);
       return { success: true, data: result, message: 'Customer created' };
     } catch (error) {
+      // If Sequelize validation error, return first error message
+      if (error && error.name === 'SequelizeUniqueConstraintError') {
+        // Find which field caused unique constraint
+        const field = error.errors && error.errors[0] && error.errors[0].path;
+        if (field === 'unique_id') return { success: false, message: 'unique_id already exists' };
+        return { success: false, message: error.errors && error.errors[0] && error.errors[0].message ? error.errors[0].message : 'Unique constraint error' };
+      }
+      if (error && error.errors && error.errors.length > 0) {
+        return { success: false, message: error.errors[0].message };
+      }
       return { success: false, message: error?.message || 'Create failed' };
     }
   },
@@ -34,6 +50,20 @@ const CustomerRepo = {
       const offset = (page - 1) * limit;
       const { rows: data, count: total } = await Customer.findAndCountAll({ where: filters, limit, offset, order: [['createdAt', 'DESC']] });
       return { success: true, data, meta: { total, page, limit, pages: Math.ceil(total / limit) } };
+    } catch (error) {
+      return { success: false, message: error?.message };
+    }
+  },
+
+  // Simplified list for dropdowns - returns just essential fields
+  getAllSimplified: async () => {
+    try {
+      const data = await Customer.findAll({
+        attributes: ['id', 'unique_id', 'company_name', 'contact_no'],
+        where: { status: 'ACTIVE' },
+        order: [['company_name', 'ASC']]
+      });
+      return { success: true, data };
     } catch (error) {
       return { success: false, message: error?.message };
     }
@@ -69,7 +99,14 @@ const CustomerRepo = {
     } catch (error) {
       return { success: false, message: error?.message };
     }
-  }
+  },
+
+  /**
+   * Generate a unique customer ID (prefix C + timestamp + random)
+   */
+  generateUniqueCustomerId: () => {
+    return 'C' + Date.now().toString(36) + Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+  },
 };
 
 export default CustomerRepo;

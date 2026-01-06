@@ -154,6 +154,24 @@ const ProductRepo = {
         }
     },
 
+    // Find a product by its code (SKU)
+    getByCode: async (code) => {
+        try {
+            if (!code) return { success: false, message: 'code is required' };
+            console.log('[ProductRepo] GET BY CODE - Fetching product with code:', code);
+            const product = await Product.findOne({ where: { sku: code } });
+            if (!product) {
+                console.log('[ProductRepo] GET BY CODE - Product not found');
+                return { success: false, message: 'Product not found' };
+            }
+            console.log('[ProductRepo] GET BY CODE - Product found:', product.id);
+            return { success: true, data: product };
+        } catch (error) {
+            console.error('[ProductRepo] GET BY CODE - Error:', error.message);
+            return { success: false, message: error.message };
+        }
+    },
+
     // Find a product by its variant_id (string identifier)
     getProductByVariantId: async (variantId) => {
         try {

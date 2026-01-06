@@ -1,8 +1,8 @@
 import sequelize from "../config/db.js";
 import { DataTypes } from "sequelize";
 
-export const Customer = sequelize.define(
-  "Customer",
+export const Vendor = sequelize.define(
+  "Vendor",
   {
     id: {
       type: DataTypes.INTEGER,
@@ -14,12 +14,10 @@ export const Customer = sequelize.define(
       allowNull: false,
       unique: true,
     },
-    // No longer using type field for customer; all records here are customers only
     company_name: {
       type: DataTypes.STRING,
-      allowNull: true,
+      allowNull: false,
     },
-    // Removed supplier_name; now handled by vendor model
     contact_no: {
       type: DataTypes.STRING,
       allowNull: true,
@@ -27,7 +25,7 @@ export const Customer = sequelize.define(
     address: {
       type: DataTypes.TEXT,
       allowNull: true,
-      comment: 'Full address of the customer'
+      comment: 'Full address of the vendor'
     },
     remarks: {
       type: DataTypes.TEXT,
@@ -52,11 +50,11 @@ export const Customer = sequelize.define(
     }
   },
   {
-    tableName: "customer",
+    tableName: "vendor",
     underscored: true,
     timestamps: true,
     paranoid: true,
   }
 );
 
-export default Customer;
+export default Vendor;

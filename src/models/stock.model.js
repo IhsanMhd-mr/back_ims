@@ -75,7 +75,7 @@ export const Stock = sequelize.define('Stock', {
         allowNull: false,
         defaultValue: 'ADJUSTMENT',
         validate: {
-            isIn: [['PURCHASE','PRODUCTION', 'SALES', 'ADJUSTMENT', 'RETURN', 'OPENING_STOCK', 'CONVERSION']]
+            isIn: [['PURCHASE','PRODUCTION', 'SALES', 'ADJUSTMENT', 'RETURN', 'CUSTOMER_RETURN', 'VENDOR_RETURN', 'OPENING_STOCK', 'CONVERSION']]
         },
         comment: 'Identifies the source/reason for the stock movement'
     },
@@ -106,7 +106,15 @@ export const Stock = sequelize.define('Stock', {
 }, {
     tableName: 'stock_records',
     timestamps: true,
-    paranoid: true // enables soft-deletes via deletedAt
+    paranoid: true, // enables soft-deletes via deletedAt
+    indexes: [
+        { fields: ['item_type', 'fk_id'], name: 'idx_stock_item_type_fk_id' },
+        { fields: ['sku'], name: 'idx_stock_sku' },
+        { fields: ['variant_id'], name: 'idx_stock_variant_id' },
+        { fields: ['date'], name: 'idx_stock_date' },
+        { fields: ['status'], name: 'idx_stock_status' },
+        { fields: ['source'], name: 'idx_stock_source' }
+    ]
 });
 
 // Utility function to refresh current quantity for a single item (item_type + fk_id)

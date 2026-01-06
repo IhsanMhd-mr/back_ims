@@ -1,22 +1,13 @@
-import CustomerRepo from "../repositories/customer.repository.js";
+import VendorRepo from "../repositories/vendor.repository.js";
 
-const CustomerController = {
+const VendorController = {
   create: async (req, res) => {
     try {
       const payload = req.body || {};
-      console.log('[CustomerController] Step 1: Received payload:', payload);
-      // Remove unique_id check, always auto-generate
-      // If no unique_id provided, let repository auto-generate it
-      const result = await CustomerRepo.createCustomer(payload);
-      console.log('[CustomerController] Step 2: CustomerRepo.createCustomer result:', result);
-      if (result.success) {
-        console.log('[CustomerController] Step 3: Customer created successfully');
-        return res.status(201).json(result);
-      }
-      console.log('[CustomerController] Step 4: Customer creation failed');
+      const result = await VendorRepo.createVendor(payload);
+      if (result.success) return res.status(201).json(result);
       return res.status(400).json(result);
     } catch (err) {
-      console.error('[CustomerController] Step 5: Error:', err.message);
       return res.status(500).json({ success: false, message: err.message });
     }
   },
@@ -25,7 +16,7 @@ const CustomerController = {
     try {
       const uniqueId = String(req.params.uniqueId || '').trim();
       if (!uniqueId) return res.status(400).json({ success: false, message: 'uniqueId is required' });
-      const result = await CustomerRepo.getByUniqueId(uniqueId);
+      const result = await VendorRepo.getByUniqueId(uniqueId);
       if (!result.success) return res.status(500).json(result);
       return res.status(200).json({ success: true, available: result.available, result });
     } catch (err) {
@@ -39,8 +30,7 @@ const CustomerController = {
       const limit = Number(req.query.limit) || 20;
       const filters = {};
       if (req.query.status) filters.status = req.query.status;
-      // No longer supporting type-based filtering; all are customers
-      const result = await CustomerRepo.getCustomers({ page, limit, filters });
+      const result = await VendorRepo.getVendors({ page, limit, filters });
       if (result.success) return res.status(200).json(result);
       return res.status(400).json(result);
     } catch (err) {
@@ -51,7 +41,7 @@ const CustomerController = {
   // Simplified getAll for dropdowns - returns just id, company_name, unique_id
   getAllDropdown: async (req, res) => {
     try {
-      const result = await CustomerRepo.getAllSimplified();
+      const result = await VendorRepo.getAllSimplified();
       if (result.success) return res.status(200).json(result);
       return res.status(400).json(result);
     } catch (err) {
@@ -63,7 +53,7 @@ const CustomerController = {
     try {
       const id = Number(req.params.id);
       if (!id) return res.status(400).json({ success: false, message: 'Invalid id' });
-      const result = await CustomerRepo.getById(id);
+      const result = await VendorRepo.getById(id);
       if (!result.success) return res.status(404).json(result);
       return res.status(200).json(result);
     } catch (err) {
@@ -75,10 +65,8 @@ const CustomerController = {
     try {
       const id = Number(req.params.id);
       if (!id) return res.status(400).json({ success: false, message: 'Invalid id' });
-      const payload = req.body || {};
-      const result = await CustomerRepo.updateCustomer(id, payload);
+      const result = await VendorRepo.updateVendor(id, req.body);
       if (result.success) return res.status(200).json(result);
-      if (result.message && result.message.includes('not found')) return res.status(404).json(result);
       return res.status(400).json(result);
     } catch (err) {
       return res.status(500).json({ success: false, message: err.message });
@@ -89,14 +77,13 @@ const CustomerController = {
     try {
       const id = Number(req.params.id);
       if (!id) return res.status(400).json({ success: false, message: 'Invalid id' });
-      const result = await CustomerRepo.deleteCustomer(id);
+      const result = await VendorRepo.deleteVendor(id);
       if (result.success) return res.status(200).json(result);
-      if (result.message && result.message.includes('not found')) return res.status(404).json(result);
       return res.status(400).json(result);
     } catch (err) {
       return res.status(500).json({ success: false, message: err.message });
     }
-  }
+  },
 };
 
-export default CustomerController;
+export default VendorController;

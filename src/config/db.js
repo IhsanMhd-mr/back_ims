@@ -4,6 +4,27 @@ import dotenv from 'dotenv';
 // Initialize dotenv
 dotenv.config();
 
+// Query logging with performance timing
+const queryLogger = (query, timing) => {
+  const executionTime = timing || 0;
+  
+  // Only log slow queries (> 100ms) in production
+  if (process.env.NODE_ENV === 'production' && executionTime < 100) {
+    return;
+  }
+  
+  // Color code by performance
+  const color = executionTime > 1000 ? '\x1b[31m' : executionTime > 500 ? '\x1b[33m' : '\x1b[32m';
+  const reset = '\x1b[0m';
+  
+  if (process.env.LOG_SQL === 'true' || executionTime > 500) {
+    console.log(`${color}[SQL ${executionTime}ms]${reset}`, query.substring(0, 200));
+    if (executionTime > 1000) {
+      console.warn('⚠️  SLOW QUERY DETECTED (>1s)');
+    }
+  }
+};
+
 // Support both cloud (DATABASE_URL) and local database configurations
 let sequelize;
 console.log('Database URL:', process.env.DATABASE_URL);
@@ -12,10 +33,11 @@ if (process.env.DATABASE_URL) {
     console.log('🌐 Using cloud database (DATABASE_URL)');
     sequelize = new Sequelize(process.env.DATABASE_URL, {
         dialect: 'postgres',
-        logging: false, // Set to console.log to see SQL queries
+        logging: queryLogger,
+        benchmark: true, // Enable timing
         pool: {
-            max: 5,
-            min: 0,
+            max: 10, // Increased from 5
+            min: 2,  // Increased from 0
             acquire: 30000,
             idle: 10000
         },
@@ -30,10 +52,11 @@ if (process.env.DATABASE_URL) {
         host: DB_HOST || 'localhost',
         port: DB_PORT || 5432,
         dialect: 'postgres',
-        logging: false, // Set to console.log to see SQL queries
+        logging: queryLogger,
+        benchmark: true, // Enable timing
         pool: {
-            max: 5,
-            min: 0,
+            max: 10, // Increased from 5
+            min: 2,  // Increased from 0
             acquire: 30000,
             idle: 10000
         }

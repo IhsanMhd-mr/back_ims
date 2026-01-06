@@ -14,14 +14,18 @@ const StockRepo = {
         }
     },
 
-    bulkCreateStockEntries: async (stockDataArray) => {
+    bulkCreateStockEntries: async (stockDataArray, options = {}) => {
         try {
             if (!Array.isArray(stockDataArray) || !stockDataArray.length) {
                 return { success: false, message: 'stockDataArray required' };
             }
 
             console.log(`[StockRepo] Bulk create: ${stockDataArray.length} records`);
-            const createdStocks = await Stock.bulkCreate(stockDataArray, { returning: true, validate: true });
+            const bulkOptions = { returning: true, validate: true };
+            if (options.transaction) {
+                bulkOptions.transaction = options.transaction;
+            }
+            const createdStocks = await Stock.bulkCreate(stockDataArray, bulkOptions);
             console.log(`[StockRepo] ✅ Success: ${createdStocks.length} created`);
             // Refresh current values for all affected items
             await refreshCurrentValueBulk(createdStocks).catch(err => console.error('Refresh error:', err));

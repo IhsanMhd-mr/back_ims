@@ -33,7 +33,19 @@ const BillRepo = {
   getAll: async ({ page = 1, limit = 50 } = {}) => {
     try {
       const offset = (page - 1) * limit;
-      const { rows: data, count: total } = await Bill.findAndCountAll({ limit, offset, order: [['createdAt', 'DESC']] });
+      const { rows: data, count: total } = await Bill.findAndCountAll({ 
+        limit, 
+        offset, 
+        order: [['createdAt', 'DESC']],
+        include: [{ 
+          model: ItemSale, 
+          as: 'items',
+          attributes: ['id', 'product_id', 'product_name', 'sku', 'variant_id', 'quantity', 'unit_price', 'subtotal', 'discount_percent']
+        }],
+        // Add subQuery: false to optimize COUNT query with includes
+        subQuery: false,
+        distinct: true
+      });
       return { success: true, data, meta: { total, page, limit, pages: Math.ceil(total / limit) } };
     } catch (err) {
       return { success: false, message: err.message };

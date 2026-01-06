@@ -10,7 +10,9 @@
     "bulk": "node src/scripts/bulk-upload.js",
     "migrate:sql": "node db/run-migrations.js",
     "migrate:drop-discount": "node db/run-drop-discount.js",
-    "seed:bills": "node db/run-seed-bills.js"
+    "seed:bills": "node db/run-seed-bills.js",
+    "migrate:performance": "node db/run-performance-migration.js",
+    "diagnose": "node db/diagnose-performance.js"
   },
   "keywords": [],
   "author": "",
